@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFileManagerStore } from '../stores/fileManagerStore';
 import { fileApi, folderApi } from '../services/api';
+import FilePreview from '../components/FilePreview';
 import {
     Grid3X3, List, Plus, FolderPlus, Upload, ChevronRight,
     FileText, Image, Film, FileArchive, File, MoreVertical,
@@ -53,6 +54,7 @@ export default function DashboardPage() {
     const [showNewFolderInput, setShowNewFolderInput] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
     const [contextMenu, setContextMenu] = useState<{ fileId: string; x: number; y: number } | null>(null);
+    const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
     const loadContent = useCallback(async () => {
         setLoading(true);
@@ -247,8 +249,8 @@ export default function DashboardPage() {
                             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-surface-500">Files</h3>
                             {viewMode === 'grid' ? (
                                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                                    {files.map((file) => (
-                                        <div key={file.id} className="file-card relative">
+                                    {files.map((file, index) => (
+                                        <div key={file.id} className="file-card group relative" onClick={() => setPreviewIndex(index)}>
                                             <div className="mb-3 flex justify-center py-4">
                                                 {getFileIcon(file.mimeType)}
                                             </div>
@@ -266,8 +268,8 @@ export default function DashboardPage() {
                                 </div>
                             ) : (
                                 <div className="space-y-1">
-                                    {files.map((file) => (
-                                        <div key={file.id} className="file-card flex items-center gap-4 rounded-lg py-2 px-3">
+                                    {files.map((file, index) => (
+                                        <div key={file.id} className="file-card flex items-center gap-4 rounded-lg py-2 px-3 cursor-pointer" onClick={() => setPreviewIndex(index)}>
                                             {getFileIcon(file.mimeType)}
                                             <div className="min-w-0 flex-1">
                                                 <p className="truncate text-sm font-medium text-white">{file.name}</p>
@@ -275,7 +277,7 @@ export default function DashboardPage() {
                                             <span className="text-xs text-surface-500">{formatSize(file.size)}</span>
                                             <span className="text-xs text-surface-500">{formatDate(file.createdAt)}</span>
                                             <button
-                                                onClick={() => setContextMenu({ fileId: file.id, x: 0, y: 0 })}
+                                                onClick={(e) => { e.stopPropagation(); setContextMenu({ fileId: file.id, x: 0, y: 0 }); }}
                                                 className="rounded-md p-1 hover:bg-surface-700"
                                             >
                                                 <MoreVertical className="h-4 w-4 text-surface-400" />
@@ -327,6 +329,19 @@ export default function DashboardPage() {
                         </button>
                     </div>
                 </>
+            )}
+
+            {/* File Preview Modal */}
+            {previewIndex !== null && files[previewIndex] && (
+                <FilePreview
+                    fileId={files[previewIndex].id}
+                    fileName={files[previewIndex].name}
+                    mimeType={files[previewIndex].mimeType}
+                    fileSize={files[previewIndex].size}
+                    onClose={() => setPreviewIndex(null)}
+                    onPrev={previewIndex > 0 ? () => setPreviewIndex(previewIndex - 1) : undefined}
+                    onNext={previewIndex < files.length - 1 ? () => setPreviewIndex(previewIndex + 1) : undefined}
+                />
             )}
         </div>
     );
