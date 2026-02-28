@@ -27,16 +27,18 @@ export default function ShareDialog({ resourceId, resourceType, resourceName, on
         setError('');
         try {
             const payload: any = {
-                resourceId,
-                resourceType,
                 permission,
             };
+            // Backend expects fileId or folderId, not resourceId/resourceType
+            if (resourceType === 'file') {
+                payload.fileId = resourceId;
+            } else {
+                payload.folderId = resourceId;
+            }
             if (usePassword && password) payload.password = password;
             if (expiresIn) {
                 const hours = parseInt(expiresIn);
-                if (hours > 0) {
-                    payload.expiresAt = new Date(Date.now() + hours * 3600 * 1000).toISOString();
-                }
+                if (hours > 0) payload.expiresIn = hours;
             }
             if (maxDownloads) {
                 const max = parseInt(maxDownloads);
