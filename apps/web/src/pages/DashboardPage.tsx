@@ -4,6 +4,7 @@ import { useFileManagerStore } from '../stores/fileManagerStore';
 import { fileApi, folderApi } from '../services/api';
 import FilePreview from '../components/FilePreview';
 import ShareDialog from '../components/ShareDialog';
+import DetailsDialog from '../components/DetailsDialog';
 import {
     Grid3X3, List, FolderPlus, Upload, ChevronRight,
     FileText, Image, Film, FileArchive, File, MoreVertical,
@@ -74,6 +75,9 @@ export default function DashboardPage() {
 
     // Share dialog state
     const [shareTarget, setShareTarget] = useState<{ id: string; type: 'file' | 'folder'; name: string } | null>(null);
+
+    // Details dialog state
+    const [detailsTarget, setDetailsTarget] = useState<{ id: string; type: 'file' | 'folder'; name: string } | null>(null);
 
     const loadContent = useCallback(async () => {
         setLoading(true);
@@ -494,8 +498,8 @@ export default function DashboardPage() {
                             <Copy className="h-4 w-4" /> Copy
                         </button>
 
-                        {/* Details (placeholder) */}
-                        <button onClick={closeContextMenu} className="dropdown-item w-full">
+                        {/* Details */}
+                        <button onClick={() => { setDetailsTarget({ id: contextMenu.id, type: contextMenu.type, name: contextMenu.name }); closeContextMenu(); }} className="dropdown-item w-full">
                             <Info className="h-4 w-4" /> Details
                         </button>
 
@@ -507,6 +511,16 @@ export default function DashboardPage() {
                         </button>
                     </div>
                 </>
+            )}
+
+            {/* Details Dialog */}
+            {detailsTarget && (
+                <DetailsDialog
+                    id={detailsTarget.id}
+                    type={detailsTarget.type}
+                    name={detailsTarget.name}
+                    onClose={() => setDetailsTarget(null)}
+                />
             )}
 
             {/* Share Dialog */}
