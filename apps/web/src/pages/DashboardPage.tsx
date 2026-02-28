@@ -3,10 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useFileManagerStore } from '../stores/fileManagerStore';
 import { fileApi, folderApi } from '../services/api';
 import FilePreview from '../components/FilePreview';
+import ShareDialog from '../components/ShareDialog';
 import {
-    Grid3X3, List, Plus, FolderPlus, Upload, ChevronRight,
+    Grid3X3, List, FolderPlus, Upload, ChevronRight,
     FileText, Image, Film, FileArchive, File, MoreVertical,
-    Download, Pencil, Trash2, Share2, FolderOpen
+    Download, Pencil, Trash2, Share2, FolderOpen, Eye, Copy, Info, Music
 } from 'lucide-react';
 
 interface FileItem {
@@ -23,9 +24,20 @@ interface FolderItem {
     _count?: { files: number; children: number };
 }
 
+interface ContextMenuState {
+    x: number;
+    y: number;
+    type: 'file' | 'folder';
+    id: string;
+    name: string;
+    mimeType?: string;
+    fileIndex?: number;
+}
+
 const getFileIcon = (mimeType: string) => {
     if (mimeType.startsWith('image/')) return <Image className="h-8 w-8 text-pink-400" />;
     if (mimeType.startsWith('video/')) return <Film className="h-8 w-8 text-purple-400" />;
+    if (mimeType.startsWith('audio/')) return <Music className="h-8 w-8 text-cyan-400" />;
     if (mimeType.includes('pdf')) return <FileText className="h-8 w-8 text-red-400" />;
     if (mimeType.includes('zip') || mimeType.includes('archive')) return <FileArchive className="h-8 w-8 text-amber-400" />;
     return <File className="h-8 w-8 text-brand-400" />;
@@ -53,8 +65,15 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [showNewFolderInput, setShowNewFolderInput] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
-    const [contextMenu, setContextMenu] = useState<{ fileId: string; x: number; y: number } | null>(null);
+    const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
     const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+
+    // Rename state
+    const [renaming, setRenaming] = useState<{ type: 'file' | 'folder'; id: string; name: string } | null>(null);
+    const [renameValue, setRenameValue] = useState('');
+
+    // Share dialog state
+    const [shareTarget, setShareTarget] = useState<{ id: string; type: 'file' | 'folder'; name: string } | null>(null);
 
     const loadContent = useCallback(async () => {
         setLoading(true);
@@ -67,12 +86,9 @@ export default function DashboardPage() {
             setFiles(filesRes.data || []);
             setFolders(foldersRes.data || []);
 
-            // Build breadcrumbs
             const crumbs: { id: string | null; name: string }[] = [{ id: null, name: 'My Files' }];
             if (folderId) {
                 const folderRes: any = await folderApi.get(folderId);
-                const pathParts = folderRes.data?.path?.split('/').filter(Boolean) || [];
-                // Simple breadcrumb from the current folder name
                 crumbs.push({ id: folderId, name: folderRes.data?.name || 'Folder' });
             }
             setBreadcrumbs(crumbs);
@@ -87,6 +103,22 @@ export default function DashboardPage() {
         setCurrentFolderId(folderId || null);
         loadContent();
     }, [folderId, loadContent, setCurrentFolderId]);
+
+    // Right-click handler for files
+    const handleFileContextMenu = (e: React.MouseEvent, file: FileItem, index: number) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setContextMenu({ x: e.clientX, y: e.clientY, type: 'file', id: file.id, name: file.name, mimeType: file.mimeType, fileIndex: index });
+    };
+
+    // Right-click handler for folders
+    const handleFolderContextMenu = (e: React.MouseEvent, folder: FolderItem) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setContextMenu({ x: e.clientX, y: e.clientY, type: 'folder', id: folder.id, name: folder.name });
+    };
+
+    const closeContextMenu = () => setContextMenu(null);
 
     const handleCreateFolder = async () => {
         if (!newFolderName.trim()) return;
@@ -103,12 +135,10 @@ export default function DashboardPage() {
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const fileList = e.target.files;
         if (!fileList?.length) return;
-
         for (const file of Array.from(fileList)) {
             const formData = new FormData();
             formData.append('file', file);
             if (folderId) formData.append('folderId', folderId);
-
             try {
                 await fileApi.upload(formData);
             } catch (err) {
@@ -118,40 +148,88 @@ export default function DashboardPage() {
         loadContent();
     };
 
-    const handleDelete = async (fileId: string) => {
+    const handleDelete = async () => {
+        if (!contextMenu) return;
         try {
-            await fileApi.delete(fileId);
+            if (contextMenu.type === 'file') {
+                await fileApi.delete(contextMenu.id);
+            } else {
+                await folderApi.delete(contextMenu.id);
+            }
             loadContent();
         } catch (err) {
             console.error('Delete failed:', err);
         }
-        setContextMenu(null);
+        closeContextMenu();
     };
 
-    const handleDownload = async (fileId: string) => {
+    const handleDownload = async () => {
+        if (!contextMenu || contextMenu.type !== 'file') return;
         try {
-            const res: any = await fileApi.download(fileId);
+            const res: any = await fileApi.download(contextMenu.id);
             window.open(res.data.downloadUrl, '_blank');
         } catch (err) {
             console.error('Download failed:', err);
         }
-        setContextMenu(null);
+        closeContextMenu();
+    };
+
+    const handlePreview = () => {
+        if (!contextMenu || contextMenu.type !== 'file') return;
+        if (contextMenu.fileIndex !== undefined) {
+            setPreviewIndex(contextMenu.fileIndex);
+        }
+        closeContextMenu();
+    };
+
+    const handleShare = () => {
+        if (!contextMenu) return;
+        setShareTarget({ id: contextMenu.id, type: contextMenu.type, name: contextMenu.name });
+        closeContextMenu();
+    };
+
+    const startRename = () => {
+        if (!contextMenu) return;
+        setRenaming({ type: contextMenu.type, id: contextMenu.id, name: contextMenu.name });
+        setRenameValue(contextMenu.name);
+        closeContextMenu();
+    };
+
+    const handleRename = async () => {
+        if (!renaming || !renameValue.trim()) return;
+        try {
+            if (renaming.type === 'file') {
+                await fileApi.rename(renaming.id, renameValue.trim());
+            } else {
+                await folderApi.rename(renaming.id, renameValue.trim());
+            }
+            setRenaming(null);
+            loadContent();
+        } catch (err) {
+            console.error('Rename failed:', err);
+        }
+    };
+
+    // Ensure context menu doesn't go off screen
+    const getMenuPosition = (x: number, y: number) => {
+        const menuW = 200, menuH = 250;
+        const maxX = window.innerWidth - menuW;
+        const maxY = window.innerHeight - menuH;
+        return { left: Math.min(x, maxX), top: Math.min(y, maxY) };
     };
 
     return (
-        <div className="animate-fade-in">
+        <div className="animate-fade-in" onContextMenu={(e) => { if (!(e.target as HTMLElement).closest('[data-ctx]')) { e.preventDefault(); } }}>
             {/* Header */}
             <div className="mb-6 flex items-center justify-between">
                 <div>
-                    {/* Breadcrumbs */}
                     <div className="flex items-center gap-1 text-sm">
                         {breadcrumbs.map((crumb, i) => (
                             <span key={i} className="flex items-center gap-1">
                                 {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-surface-600" />}
                                 <button
                                     onClick={() => crumb.id ? navigate(`/folder/${crumb.id}`) : navigate('/')}
-                                    className={`transition-colors hover:text-white ${i === breadcrumbs.length - 1 ? 'font-medium text-white' : 'text-surface-400'
-                                        }`}
+                                    className={`transition-colors hover:text-white ${i === breadcrumbs.length - 1 ? 'font-medium text-white' : 'text-surface-400'}`}
                                 >
                                     {crumb.name}
                                 </button>
@@ -161,30 +239,25 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {/* View Toggle */}
                     <div className="flex rounded-lg border border-surface-700 bg-surface-800/50 p-0.5">
                         <button
                             onClick={() => setViewMode('grid')}
-                            className={`rounded-md p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-brand-500/20 text-brand-400' : 'text-surface-500 hover:text-white'
-                                }`}
+                            className={`rounded-md p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-brand-500/20 text-brand-400' : 'text-surface-500 hover:text-white'}`}
                         >
                             <Grid3X3 className="h-4 w-4" />
                         </button>
                         <button
                             onClick={() => setViewMode('list')}
-                            className={`rounded-md p-1.5 transition-colors ${viewMode === 'list' ? 'bg-brand-500/20 text-brand-400' : 'text-surface-500 hover:text-white'
-                                }`}
+                            className={`rounded-md p-1.5 transition-colors ${viewMode === 'list' ? 'bg-brand-500/20 text-brand-400' : 'text-surface-500 hover:text-white'}`}
                         >
                             <List className="h-4 w-4" />
                         </button>
                     </div>
 
-                    {/* New Folder */}
                     <button onClick={() => setShowNewFolderInput(true)} className="btn-secondary flex items-center gap-1.5 text-sm px-3 py-1.5">
                         <FolderPlus className="h-4 w-4" /> New Folder
                     </button>
 
-                    {/* Upload */}
                     <label className="btn-primary flex items-center gap-1.5 text-sm cursor-pointer px-4 py-1.5">
                         <Upload className="h-4 w-4" /> Upload
                         <input type="file" multiple className="hidden" onChange={handleUpload} />
@@ -222,22 +295,46 @@ export default function DashboardPage() {
                             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-surface-500">Folders</h3>
                             <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5' : 'space-y-1'}>
                                 {folders.map((folder) => (
-                                    <button
+                                    <div
                                         key={folder.id}
-                                        onClick={() => navigate(`/folder/${folder.id}`)}
-                                        className={`file-card flex items-center gap-3 text-left w-full ${viewMode === 'list' ? 'rounded-lg' : ''
-                                            }`}
+                                        data-ctx="folder"
+                                        onContextMenu={(e) => handleFolderContextMenu(e, folder)}
+                                        onClick={() => {
+                                            if (renaming?.id === folder.id) return;
+                                            navigate(`/folder/${folder.id}`);
+                                        }}
+                                        className={`file-card group flex items-center gap-3 text-left w-full cursor-pointer ${viewMode === 'list' ? 'rounded-lg' : ''}`}
                                     >
                                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10">
                                             <FolderOpen className="h-5 w-5 text-brand-400" />
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <p className="truncate text-sm font-medium text-white">{folder.name}</p>
-                                            <p className="text-xs text-surface-500">
-                                                {folder._count?.files ?? 0} files
-                                            </p>
+                                            {renaming?.id === folder.id ? (
+                                                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                                    <input
+                                                        type="text"
+                                                        value={renameValue}
+                                                        onChange={(e) => setRenameValue(e.target.value)}
+                                                        onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setRenaming(null); }}
+                                                        className="input-field text-sm py-0.5 px-1"
+                                                        autoFocus
+                                                    />
+                                                    <button onClick={handleRename} className="text-xs text-brand-400 hover:text-brand-300">Save</button>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <p className="truncate text-sm font-medium text-white">{folder.name}</p>
+                                                    <p className="text-xs text-surface-500">{folder._count?.files ?? 0} files</p>
+                                                </>
+                                            )}
                                         </div>
-                                    </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleFolderContextMenu(e, folder); }}
+                                            className="rounded-md p-1 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-surface-700"
+                                        >
+                                            <MoreVertical className="h-4 w-4 text-surface-400" />
+                                        </button>
+                                    </div>
                                 ))}
                             </div>
                         </div>
@@ -250,15 +347,35 @@ export default function DashboardPage() {
                             {viewMode === 'grid' ? (
                                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                                     {files.map((file, index) => (
-                                        <div key={file.id} className="file-card group relative" onClick={() => setPreviewIndex(index)}>
+                                        <div
+                                            key={file.id}
+                                            data-ctx="file"
+                                            className="file-card group relative cursor-pointer"
+                                            onClick={() => setPreviewIndex(index)}
+                                            onContextMenu={(e) => handleFileContextMenu(e, file, index)}
+                                        >
                                             <div className="mb-3 flex justify-center py-4">
                                                 {getFileIcon(file.mimeType)}
                                             </div>
-                                            <p className="truncate text-sm font-medium text-white">{file.name}</p>
-                                            <p className="mt-0.5 text-xs text-surface-500">{formatSize(file.size)}</p>
-
+                                            {renaming?.id === file.id ? (
+                                                <div onClick={(e) => e.stopPropagation()}>
+                                                    <input
+                                                        type="text"
+                                                        value={renameValue}
+                                                        onChange={(e) => setRenameValue(e.target.value)}
+                                                        onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setRenaming(null); }}
+                                                        className="input-field text-sm py-0.5 px-1 w-full"
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <p className="truncate text-sm font-medium text-white">{file.name}</p>
+                                                    <p className="mt-0.5 text-xs text-surface-500">{formatSize(file.size)}</p>
+                                                </>
+                                            )}
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); setContextMenu({ fileId: file.id, x: e.clientX, y: e.clientY }); }}
+                                                onClick={(e) => { e.stopPropagation(); handleFileContextMenu(e, file, index); }}
                                                 className="absolute right-2 top-2 rounded-md p-1 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-surface-700"
                                             >
                                                 <MoreVertical className="h-4 w-4 text-surface-400" />
@@ -269,15 +386,34 @@ export default function DashboardPage() {
                             ) : (
                                 <div className="space-y-1">
                                     {files.map((file, index) => (
-                                        <div key={file.id} className="file-card flex items-center gap-4 rounded-lg py-2 px-3 cursor-pointer" onClick={() => setPreviewIndex(index)}>
+                                        <div
+                                            key={file.id}
+                                            data-ctx="file"
+                                            className="file-card flex items-center gap-4 rounded-lg py-2 px-3 cursor-pointer"
+                                            onClick={() => setPreviewIndex(index)}
+                                            onContextMenu={(e) => handleFileContextMenu(e, file, index)}
+                                        >
                                             {getFileIcon(file.mimeType)}
                                             <div className="min-w-0 flex-1">
-                                                <p className="truncate text-sm font-medium text-white">{file.name}</p>
+                                                {renaming?.id === file.id ? (
+                                                    <div onClick={(e) => e.stopPropagation()}>
+                                                        <input
+                                                            type="text"
+                                                            value={renameValue}
+                                                            onChange={(e) => setRenameValue(e.target.value)}
+                                                            onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setRenaming(null); }}
+                                                            className="input-field text-sm py-0.5 px-1"
+                                                            autoFocus
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <p className="truncate text-sm font-medium text-white">{file.name}</p>
+                                                )}
                                             </div>
                                             <span className="text-xs text-surface-500">{formatSize(file.size)}</span>
                                             <span className="text-xs text-surface-500">{formatDate(file.createdAt)}</span>
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); setContextMenu({ fileId: file.id, x: 0, y: 0 }); }}
+                                                onClick={(e) => { e.stopPropagation(); handleFileContextMenu(e, file, index); }}
                                                 className="rounded-md p-1 hover:bg-surface-700"
                                             >
                                                 <MoreVertical className="h-4 w-4 text-surface-400" />
@@ -306,29 +442,81 @@ export default function DashboardPage() {
                 </>
             )}
 
-            {/* Context Menu */}
+            {/* Right-Click Context Menu */}
             {contextMenu && (
                 <>
-                    <div className="fixed inset-0 z-40" onClick={() => setContextMenu(null)} />
+                    <div className="fixed inset-0 z-40" onClick={closeContextMenu} onContextMenu={(e) => { e.preventDefault(); closeContextMenu(); }} />
                     <div
-                        className="dropdown-menu z-50"
-                        style={{ position: 'fixed', left: contextMenu.x || '50%', top: contextMenu.y || '50%' }}
+                        className="fixed z-50 w-52 rounded-xl border border-surface-700 bg-surface-900/95 py-1.5 shadow-xl backdrop-blur-sm animate-scale-in"
+                        style={getMenuPosition(contextMenu.x, contextMenu.y)}
                     >
-                        <button onClick={() => handleDownload(contextMenu.fileId)} className="dropdown-item w-full">
-                            <Download className="h-4 w-4" /> Download
-                        </button>
-                        <button className="dropdown-item w-full">
+                        {/* Header */}
+                        <div className="border-b border-surface-700 px-3 py-2 mb-1">
+                            <p className="truncate text-xs font-medium text-surface-300">{contextMenu.name}</p>
+                            <p className="text-[10px] text-surface-500 capitalize">{contextMenu.type}</p>
+                        </div>
+
+                        {/* File-only: Preview */}
+                        {contextMenu.type === 'file' && (
+                            <button onClick={handlePreview} className="dropdown-item w-full">
+                                <Eye className="h-4 w-4" /> Preview
+                            </button>
+                        )}
+
+                        {/* File-only: Download */}
+                        {contextMenu.type === 'file' && (
+                            <button onClick={handleDownload} className="dropdown-item w-full">
+                                <Download className="h-4 w-4" /> Download
+                            </button>
+                        )}
+
+                        {/* Folder: Open */}
+                        {contextMenu.type === 'folder' && (
+                            <button onClick={() => { navigate(`/folder/${contextMenu.id}`); closeContextMenu(); }} className="dropdown-item w-full">
+                                <FolderOpen className="h-4 w-4" /> Open
+                            </button>
+                        )}
+
+                        <hr className="my-1 border-surface-700" />
+
+                        {/* Share */}
+                        <button onClick={handleShare} className="dropdown-item w-full">
                             <Share2 className="h-4 w-4" /> Share
                         </button>
-                        <button className="dropdown-item w-full">
+
+                        {/* Rename */}
+                        <button onClick={startRename} className="dropdown-item w-full">
                             <Pencil className="h-4 w-4" /> Rename
                         </button>
+
+                        {/* Copy (placeholder) */}
+                        <button onClick={closeContextMenu} className="dropdown-item w-full">
+                            <Copy className="h-4 w-4" /> Copy
+                        </button>
+
+                        {/* Details (placeholder) */}
+                        <button onClick={closeContextMenu} className="dropdown-item w-full">
+                            <Info className="h-4 w-4" /> Details
+                        </button>
+
                         <hr className="my-1 border-surface-700" />
-                        <button onClick={() => handleDelete(contextMenu.fileId)} className="dropdown-item w-full text-red-400 hover:text-red-300">
+
+                        {/* Delete */}
+                        <button onClick={handleDelete} className="dropdown-item w-full text-red-400 hover:text-red-300">
                             <Trash2 className="h-4 w-4" /> Move to Trash
                         </button>
                     </div>
                 </>
+            )}
+
+            {/* Share Dialog */}
+            {shareTarget && (
+                <ShareDialog
+                    resourceId={shareTarget.id}
+                    resourceType={shareTarget.type}
+                    resourceName={shareTarget.name}
+                    onClose={() => setShareTarget(null)}
+                />
             )}
 
             {/* File Preview Modal */}
