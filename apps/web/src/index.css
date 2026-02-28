@@ -40,6 +40,7 @@
 }
 
 @layer components {
+
   /* Glass morphism card */
   .glass-card {
     @apply rounded-xl border backdrop-blur-md;
@@ -70,33 +71,27 @@
 
   /* Secondary button */
   .btn-secondary {
-    @apply rounded-lg border border-surface-600 bg-surface-800/50 px-6 py-2.5 font-medium text-surface-200 
-           transition-all duration-200 hover:border-surface-500 hover:bg-surface-700/50;
+    @apply rounded-lg border border-surface-600 bg-surface-800/50 px-6 py-2.5 font-medium text-surface-200 transition-all duration-200 hover:border-surface-500 hover:bg-surface-700/50;
   }
 
   /* Ghost button */
   .btn-ghost {
-    @apply rounded-lg px-4 py-2 font-medium text-surface-300 transition-all duration-200 
-           hover:bg-surface-800 hover:text-white;
+    @apply rounded-lg px-4 py-2 font-medium text-surface-300 transition-all duration-200 hover:bg-surface-800 hover:text-white;
   }
 
   /* Input field */
   .input-field {
-    @apply w-full rounded-lg border border-surface-700 bg-surface-800/50 px-4 py-2.5 
-           text-white placeholder-surface-500 transition-all duration-200
-           focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20;
+    @apply w-full rounded-lg border border-surface-700 bg-surface-800/50 px-4 py-2.5 text-white placeholder-surface-500 transition-all duration-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20;
   }
 
   /* File item in grid */
   .file-card {
-    @apply glass-card group cursor-pointer p-4 transition-all duration-200 
-           hover:border-brand-500/30 hover:shadow-lg hover:shadow-brand-500/5;
+    @apply glass-card cursor-pointer p-4 transition-all duration-200 hover:border-brand-500/30 hover:shadow-lg hover:shadow-brand-500/5;
   }
 
   /* Sidebar nav item */
   .nav-item {
-    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-surface-400 
-           transition-all duration-200 hover:bg-surface-800 hover:text-white;
+    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-surface-400 transition-all duration-200 hover:bg-surface-800 hover:text-white;
   }
 
   .nav-item.active {
@@ -109,8 +104,7 @@
   }
 
   .dropdown-item {
-    @apply flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-surface-300 
-           transition-colors duration-150 hover:bg-surface-700/50 hover:text-white;
+    @apply flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-surface-300 transition-colors duration-150 hover:bg-surface-700/50 hover:text-white;
   }
 
   /* Progress bar */
