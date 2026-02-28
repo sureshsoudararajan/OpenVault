@@ -1,0 +1,142 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   OpenVault — Global Design Tokens
+   ============================================ */
+
+@layer base {
+  :root {
+    --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%);
+    --gradient-accent: linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #6366f1 100%);
+    --gradient-surface: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+    --glass-bg: rgba(30, 41, 59, 0.6);
+    --glass-border: rgba(148, 163, 184, 0.1);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.3);
+    border-radius: 3px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.5);
+  }
+}
+
+@layer components {
+  /* Glass morphism card */
+  .glass-card {
+    @apply rounded-xl border backdrop-blur-md;
+    background: var(--glass-bg);
+    border-color: var(--glass-border);
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-primary);
+  }
+
+  /* Primary button with gradient */
+  .btn-primary {
+    @apply relative overflow-hidden rounded-lg px-6 py-2.5 font-medium text-white transition-all duration-300;
+    background-image: var(--gradient-primary);
+  }
+
+  .btn-primary:hover {
+    @apply shadow-lg shadow-brand-500/25;
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+  }
+
+  /* Secondary button */
+  .btn-secondary {
+    @apply rounded-lg border border-surface-600 bg-surface-800/50 px-6 py-2.5 font-medium text-surface-200 
+           transition-all duration-200 hover:border-surface-500 hover:bg-surface-700/50;
+  }
+
+  /* Ghost button */
+  .btn-ghost {
+    @apply rounded-lg px-4 py-2 font-medium text-surface-300 transition-all duration-200 
+           hover:bg-surface-800 hover:text-white;
+  }
+
+  /* Input field */
+  .input-field {
+    @apply w-full rounded-lg border border-surface-700 bg-surface-800/50 px-4 py-2.5 
+           text-white placeholder-surface-500 transition-all duration-200
+           focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20;
+  }
+
+  /* File item in grid */
+  .file-card {
+    @apply glass-card group cursor-pointer p-4 transition-all duration-200 
+           hover:border-brand-500/30 hover:shadow-lg hover:shadow-brand-500/5;
+  }
+
+  /* Sidebar nav item */
+  .nav-item {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-surface-400 
+           transition-all duration-200 hover:bg-surface-800 hover:text-white;
+  }
+
+  .nav-item.active {
+    @apply bg-brand-500/10 text-brand-400;
+  }
+
+  /* Dropdown menu */
+  .dropdown-menu {
+    @apply glass-card animate-scale-in absolute z-50 min-w-[180px] overflow-hidden p-1 shadow-xl;
+  }
+
+  .dropdown-item {
+    @apply flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-surface-300 
+           transition-colors duration-150 hover:bg-surface-700/50 hover:text-white;
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    @apply h-1.5 overflow-hidden rounded-full bg-surface-800;
+  }
+
+  .progress-bar-fill {
+    @apply h-full rounded-full transition-all duration-300;
+    background-image: var(--gradient-accent);
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .badge-primary {
+    @apply badge bg-brand-500/10 text-brand-400;
+  }
+
+  .badge-success {
+    @apply badge bg-emerald-500/10 text-emerald-400;
+  }
+
+  .badge-warning {
+    @apply badge bg-amber-500/10 text-amber-400;
+  }
+}

@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: openvault
+          POSTGRES_PASSWORD: openvault_secret
+          POSTGRES_DB: openvault_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U openvault"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate --schema=apps/api/prisma/schema.prisma
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test
+        env:
+          DATABASE_URL: postgresql://openvault:openvault_secret@localhost:5432/openvault_test
+          REDIS_URL: redis://localhost:6379
+          JWT_ACCESS_SECRET: ci-test-access-secret-very-long-key
+          JWT_REFRESH_SECRET: ci-test-refresh-secret-very-long-key
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build API Docker image
+        run: docker build -f infra/docker/Dockerfile.api -t openvault-api:latest .
+
+      - name: Build Web Docker image
+        run: docker build -f infra/docker/Dockerfile.web -t openvault-web:latest .

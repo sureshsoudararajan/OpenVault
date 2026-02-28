@@ -1,0 +1,45 @@
+# Development overrides — mounts source for hot reload
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: openvault-postgres-dev
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: openvault
+      POSTGRES_PASSWORD: openvault_secret
+      POSTGRES_DB: openvault
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: openvault-redis-dev
+    ports:
+      - "6379:6379"
+
+  minio:
+    image: minio/minio
+    container_name: openvault-minio-dev
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: openvault_minio
+      MINIO_ROOT_PASSWORD: openvault_minio_secret
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data-dev:/data
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    container_name: openvault-meili-dev
+    ports:
+      - "7700:7700"
+    environment:
+      MEILI_MASTER_KEY: openvault_meili_master_key
+      MEILI_ENV: development
+
+volumes:
+  pgdata-dev:
+  minio-data-dev:

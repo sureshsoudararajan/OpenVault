@@ -1,0 +1,255 @@
+// This is your Prisma schema file for OpenVault.
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Users & Authentication
+// ============================================
+
+model User {
+  id            String   @id @default(uuid()) @db.Uuid
+  email         String   @unique @db.VarChar(255)
+  passwordHash  String?  @map("password_hash") @db.VarChar(255)
+  name          String   @db.VarChar(100)
+  avatarUrl     String?  @map("avatar_url") @db.VarChar(500)
+  oauthProvider String?  @map("oauth_provider") @db.VarChar(20)
+  oauthId       String?  @map("oauth_id") @db.VarChar(255)
+  totpSecret    String?  @map("totp_secret") @db.VarChar(255)
+  mfaEnabled    Boolean  @default(false) @map("mfa_enabled")
+  role          String   @default("member") @db.VarChar(20)
+  storageQuota  BigInt   @default(5368709120) @map("storage_quota")
+  storageUsed   BigInt   @default(0) @map("storage_used")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  files          File[]
+  folders        Folder[]
+  sessions       Session[]
+  comments       Comment[]
+  activityLogs   ActivityLog[]
+  encryptionKeys EncryptionKey[]
+  permissionsGranted  Permission[]  @relation("GrantedBy")
+  permissionsReceived Permission[]  @relation("GrantedTo")
+  shareLinksCreated   ShareLink[]
+  fileVersions        FileVersion[]
+
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  refreshToken String   @map("refresh_token") @db.VarChar(500)
+  ipAddress    String?  @map("ip_address") @db.VarChar(45)
+  userAgent    String?  @map("user_agent") @db.VarChar(500)
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@map("sessions")
+}
+
+// ============================================
+// File Storage
+// ============================================
+
+model File {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  folderId        String?   @map("folder_id") @db.Uuid
+  name            String    @db.VarChar(255)
+  mimeType        String    @map("mime_type") @db.VarChar(127)
+  size            BigInt
+  sha256Hash      String    @map("sha256_hash") @db.VarChar(64)
+  storageKey      String    @map("storage_key") @db.VarChar(500)
+  encryptionKeyId String?   @map("encryption_key_id") @db.Uuid
+  currentVersion  Int       @default(1) @map("current_version")
+  isTrashed       Boolean   @default(false) @map("is_trashed")
+  trashedAt       DateTime? @map("trashed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder        Folder?       @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  encryptionKey EncryptionKey? @relation(fields: [encryptionKeyId], references: [id])
+  versions      FileVersion[]
+  comments      Comment[]
+  permissions   Permission[]  @relation("FilePermissions")
+  shareLinks    ShareLink[]   @relation("FileShareLinks")
+
+  @@index([userId])
+  @@index([folderId])
+  @@index([sha256Hash])
+  @@index([isTrashed])
+  @@map("files")
+}
+
+model FileVersion {
+  id            String   @id @default(uuid()) @db.Uuid
+  fileId        String   @map("file_id") @db.Uuid
+  versionNumber Int      @map("version_number")
+  size          BigInt
+  sha256Hash    String   @map("sha256_hash") @db.VarChar(64)
+  storageKey    String   @map("storage_key") @db.VarChar(500)
+  changeSummary String?  @map("change_summary") @db.VarChar(500)
+  createdBy     String   @map("created_by") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  file    File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  creator User @relation(fields: [createdBy], references: [id])
+
+  @@unique([fileId, versionNumber])
+  @@index([fileId])
+  @@map("file_versions")
+}
+
+// ============================================
+// Folder Hierarchy
+// ============================================
+
+model Folder {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  parentId     String?  @map("parent_id") @db.Uuid
+  name         String   @db.VarChar(255)
+  path         String   @db.VarChar(2000) // materialized path
+  isTeamFolder Boolean  @default(false) @map("is_team_folder")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent      Folder?    @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Folder[]   @relation("FolderHierarchy")
+  files       File[]
+  permissions Permission[] @relation("FolderPermissions")
+  shareLinks  ShareLink[]  @relation("FolderShareLinks")
+
+  @@index([userId])
+  @@index([parentId])
+  @@index([path])
+  @@map("folders")
+}
+
+// ============================================
+// Permissions & Sharing
+// ============================================
+
+model Permission {
+  id           String    @id @default(uuid()) @db.Uuid
+  fileId       String?   @map("file_id") @db.Uuid
+  folderId     String?   @map("folder_id") @db.Uuid
+  grantedToId  String    @map("granted_to") @db.Uuid
+  grantedById  String    @map("granted_by") @db.Uuid
+  role         String    @db.VarChar(20) // viewer | editor | owner
+  expiresAt    DateTime? @map("expires_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  file      File?   @relation("FilePermissions", fields: [fileId], references: [id], onDelete: Cascade)
+  folder    Folder? @relation("FolderPermissions", fields: [folderId], references: [id], onDelete: Cascade)
+  grantedTo User    @relation("GrantedTo", fields: [grantedToId], references: [id], onDelete: Cascade)
+  grantedBy User    @relation("GrantedBy", fields: [grantedById], references: [id], onDelete: Cascade)
+
+  @@index([fileId])
+  @@index([folderId])
+  @@index([grantedToId])
+  @@map("permissions")
+}
+
+model ShareLink {
+  id            String    @id @default(uuid()) @db.Uuid
+  fileId        String?   @map("file_id") @db.Uuid
+  folderId      String?   @map("folder_id") @db.Uuid
+  token         String    @unique @db.VarChar(64)
+  passwordHash  String?   @map("password_hash") @db.VarChar(255)
+  permission    String    @default("viewer") @db.VarChar(20)
+  createdById   String    @map("created_by") @db.Uuid
+  downloadCount Int       @default(0) @map("download_count")
+  maxDownloads  Int?      @map("max_downloads")
+  expiresAt     DateTime? @map("expires_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  file      File?   @relation("FileShareLinks", fields: [fileId], references: [id], onDelete: Cascade)
+  folder    Folder? @relation("FolderShareLinks", fields: [folderId], references: [id], onDelete: Cascade)
+  createdBy User    @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([fileId])
+  @@index([folderId])
+  @@map("share_links")
+}
+
+// ============================================
+// Collaboration
+// ============================================
+
+model Comment {
+  id        String   @id @default(uuid()) @db.Uuid
+  fileId    String   @map("file_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  body      String   @db.Text
+  parentId  String?  @map("parent_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  file    File      @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentThread")
+
+  @@index([fileId])
+  @@index([parentId])
+  @@map("comments")
+}
+
+// ============================================
+// Activity & Audit
+// ============================================
+
+model ActivityLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  action       String   @db.VarChar(30)
+  resourceId   String   @map("resource_id") @db.Uuid
+  resourceType String   @map("resource_type") @db.VarChar(20) // file | folder
+  metadata     Json?    @db.JsonB
+  ipAddress    String?  @map("ip_address") @db.VarChar(45)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([resourceId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+// ============================================
+// Encryption Keys (Distributed Model)
+// ============================================
+
+model EncryptionKey {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  encryptedUserKey  Bytes     @map("encrypted_user_key")
+  keySalt           Bytes     @map("key_salt")
+  serverKeyFragment Bytes     @map("server_key_fragment")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  rotatedAt         DateTime? @map("rotated_at")
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  files File[]
+
+  @@index([userId])
+  @@map("encryption_keys")
+}
