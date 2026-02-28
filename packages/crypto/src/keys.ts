@@ -1,5 +1,5 @@
 import { randomBytes, scryptSync } from 'crypto';
-import { encrypt, decrypt, serializePayload, deserializePayload, generateKey } from './aes.js';
+import { encrypt, decrypt, serializePayload, deserializePayload, generateKey } from './aes';
 
 /**
  * Distributed Encryption Key Model:

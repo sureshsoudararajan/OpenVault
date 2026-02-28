@@ -120,7 +120,7 @@ export interface TokenPayload {
     exp: number;
 }
 
-import type { UserRole } from './user.js';
+import type { UserRole } from './user';
 
 // ============================================
 // API Response Types
