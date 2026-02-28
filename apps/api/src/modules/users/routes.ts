@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import prisma from '../../db/index.js';
-import { authGuard, requireRole } from '../../middleware/auth.js';
+import prisma from '../../db/index';
+import { authGuard, requireRole } from '../../middleware/auth';
 
 export async function userRoutes(app: FastifyInstance) {
     // GET /api/users/me — Current user profile

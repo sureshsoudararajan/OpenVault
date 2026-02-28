@@ -1,10 +1,10 @@
 import jwt from 'jsonwebtoken';
 import argon2 from 'argon2';
 import { authenticator } from 'otplib';
-import prisma from '../../db/index.js';
+import prisma from '../../db/index';
 import { loadConfig } from '@openvault/config';
 import { generateUrlSafeToken } from '@openvault/crypto';
-import type { RegisterInput, LoginInput } from './schema.js';
+import type { RegisterInput, LoginInput } from './schema';
 
 const config = loadConfig();
 

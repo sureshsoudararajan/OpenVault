@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
-import { registerSchema, loginSchema, refreshTokenSchema, enableMfaSchema } from './schema.js';
-import * as authService from './service.js';
-import { authGuard } from '../../middleware/auth.js';
+import { registerSchema, loginSchema, refreshTokenSchema, enableMfaSchema } from './schema';
+import * as authService from './service';
+import { authGuard } from '../../middleware/auth';
 
 export async function authRoutes(app: FastifyInstance) {
     // POST /api/auth/register

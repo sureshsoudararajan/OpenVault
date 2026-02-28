@@ -6,15 +6,15 @@ import cookie from '@fastify/cookie';
 import multipart from '@fastify/multipart';
 import websocket from '@fastify/websocket';
 import { loadConfig } from '@openvault/config';
-import { authRoutes } from './modules/auth/routes.js';
-import { userRoutes } from './modules/users/routes.js';
-import { fileRoutes } from './modules/files/routes.js';
-import { folderRoutes } from './modules/folders/routes.js';
-import { versionRoutes } from './modules/versions/routes.js';
-import { sharingRoutes } from './modules/sharing/routes.js';
-import { collaborationRoutes } from './modules/collaboration/routes.js';
-import { searchRoutes } from './modules/search/routes.js';
-import { dedupRoutes } from './modules/dedup/routes.js';
+import { authRoutes } from './modules/auth/routes';
+import { userRoutes } from './modules/users/routes';
+import { fileRoutes } from './modules/files/routes';
+import { folderRoutes } from './modules/folders/routes';
+import { versionRoutes } from './modules/versions/routes';
+import { sharingRoutes } from './modules/sharing/routes';
+import { collaborationRoutes } from './modules/collaboration/routes';
+import { searchRoutes } from './modules/search/routes';
+import { dedupRoutes } from './modules/dedup/routes';
 
 export async function buildApp() {
     const config = loadConfig();

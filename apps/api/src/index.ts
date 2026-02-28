@@ -1,7 +1,7 @@
-import { buildApp } from './app.js';
+import { buildApp } from './app';
 import { loadConfig } from '@openvault/config';
-import { initStorage } from './storage/minio.js';
-import { initWorkers } from './jobs/index.js';
+import { initStorage } from './storage/minio';
+import { initWorkers } from './jobs/index';
 
 async function main() {
     const config = loadConfig();

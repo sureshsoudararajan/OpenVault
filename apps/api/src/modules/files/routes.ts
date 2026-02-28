@@ -1,10 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import prisma from '../../db/index.js';
-import { authGuard } from '../../middleware/auth.js';
+import prisma from '../../db/index';
+import { authGuard } from '../../middleware/auth';
 import { loadConfig } from '@openvault/config';
 import { sha256 } from '@openvault/crypto';
-import { uploadObject, buildStorageKey, getPresignedDownloadUrl, deleteObject } from '../../storage/minio.js';
-import { enqueueThumbnail, enqueueDedupScan } from '../../jobs/index.js';
+import { uploadObject, buildStorageKey, getPresignedDownloadUrl, deleteObject } from '../../storage/minio';
+import { enqueueThumbnail, enqueueDedupScan } from '../../jobs/index';
 import { z } from 'zod';
 
 const config = loadConfig();

@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { MeiliSearch } from 'meilisearch';
 import { loadConfig } from '@openvault/config';
-import prisma from '../../db/index.js';
-import { authGuard } from '../../middleware/auth.js';
+import prisma from '../../db/index';
+import { authGuard } from '../../middleware/auth';
 
 const config = loadConfig();
 let meiliClient: MeiliSearch;

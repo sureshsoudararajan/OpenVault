@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import prisma from '../../db/index.js';
-import { authGuard } from '../../middleware/auth.js';
+import prisma from '../../db/index';
+import { authGuard } from '../../middleware/auth';
 import { z } from 'zod';
 
 const createCommentSchema = z.object({
