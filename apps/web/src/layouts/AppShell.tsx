@@ -1,6 +1,7 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useFileManagerStore } from '../stores/fileManagerStore';
+import { fileApi } from '../services/api';
 import {
     FolderOpen, Trash2, Share2, Settings, Search, Upload, LogOut,
     Shield, HardDrive, Menu, X, ChevronDown
@@ -13,6 +14,31 @@ export default function AppShell() {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
+
+    const handleSidebarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const fileList = e.target.files;
+        if (!fileList?.length) return;
+
+        // Extract current folderId from URL if on a folder page
+        const folderMatch = location.pathname.match(/\/folder\/(.+)/);
+        const folderId = folderMatch?.[1];
+
+        for (const file of Array.from(fileList)) {
+            const formData = new FormData();
+            formData.append('file', file);
+            if (folderId) formData.append('folderId', folderId);
+            try {
+                await fileApi.upload(formData);
+            } catch (err) {
+                console.error('Upload failed:', err);
+            }
+        }
+        // Reset input so same file can be re-uploaded
+        e.target.value = '';
+        // Reload the page to reflect new files
+        window.location.reload();
+    };
 
     const handleLogout = () => {
         logout();
@@ -42,10 +68,11 @@ export default function AppShell() {
 
                 {/* Upload Button */}
                 <div className="px-4 py-4">
-                    <button className="btn-primary flex w-full items-center justify-center gap-2 text-sm">
+                    <label className="btn-primary flex w-full items-center justify-center gap-2 text-sm cursor-pointer">
                         <Upload className="h-4 w-4" />
                         Upload Files
-                    </button>
+                        <input type="file" multiple className="hidden" onChange={handleSidebarUpload} />
+                    </label>
                 </div>
 
                 {/* Navigation */}
