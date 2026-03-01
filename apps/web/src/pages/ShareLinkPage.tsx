@@ -83,8 +83,12 @@ export default function ShareLinkPage() {
             .catch((err: any) => {
                 setError(err.message || 'Link unavailable');
                 setErrorCode(err.code || '');
-                // If NOT_YET_OPEN, we may still have opensAt in error response
-                if (err.data?.opensAt) setData({ opensAt: err.data.opensAt });
+                // Completely overwrite data with error metadata (if present) to prevent stale file data leaks
+                if (err.data?.opensAt) {
+                    setData({ opensAt: err.data.opensAt });
+                } else {
+                    setData(null);
+                }
             })
             .finally(() => setLoading(false));
     }, [token]);
@@ -205,6 +209,7 @@ export default function ShareLinkPage() {
     const isExpired = errorCode === 'EXPIRED';
     const isLimitReached = errorCode === 'LIMIT_REACHED';
     const isDisabled = errorCode === 'DISABLED';
+    const isLocked = isNotYetOpen || isExpired || isLimitReached || isDisabled;
 
     // Preview rendering
     if (previewUrl && previewData) {
@@ -450,7 +455,7 @@ export default function ShareLinkPage() {
                     )}
 
                     {/* Authenticated: Show File/Folder */}
-                    {!error && data && isAuthenticated && (
+                    {!error && data && !isLocked && isAuthenticated && (
                         <>
                             {/* File Share */}
                             {data.file && (
