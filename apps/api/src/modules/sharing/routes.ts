@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import prisma from '../../db/index';
 import { authGuard } from '../../middleware/auth';
 import { generateUrlSafeToken } from '@openvault/crypto';
-import { getPresignedDownloadUrl } from '../../storage/minio';
+import { getPresignedDownloadUrl, getPresignedUploadUrl } from '../../storage/minio';
 import { loadConfig } from '@openvault/config';
 import argon2 from 'argon2';
 import { z } from 'zod';
