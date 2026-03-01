@@ -1,3 +1,5 @@
+import typography from '@tailwindcss/typography';
+
 /** @type {import('tailwindcss').Config} */
 export default {
     content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
@@ -43,6 +45,13 @@ export default {
             fontFamily: {
                 sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
             },
+            typography: {
+                DEFAULT: {
+                    css: {
+                        maxWidth: 'none',
+                    },
+                },
+            },
             animation: {
                 'fade-in': 'fadeIn 0.2s ease-out',
                 'slide-up': 'slideUp 0.3s ease-out',
@@ -82,5 +91,5 @@ export default {
             },
         },
     },
-    plugins: [require('@tailwindcss/typography')],
+    plugins: [typography],
 };
