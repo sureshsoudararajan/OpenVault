@@ -58,6 +58,12 @@ export default function ShareLinkPage() {
     const [previewData, setPreviewData] = useState<any>(null);
     const [loadingPreview, setLoadingPreview] = useState(false);
 
+    // Text Edit
+    const [textContent, setTextContent] = useState<string | null>(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [savingEdit, setSavingEdit] = useState(false);
+    const [editContent, setEditContent] = useState('');
+
     // Theme
     const [theme, setTheme] = useState<'dark' | 'light'>(() => {
         const stored = localStorage.getItem('theme');
@@ -136,7 +142,9 @@ export default function ShareLinkPage() {
             const res: any = await sharingApi.previewShared(token, fileId);
             if (res.data) {
                 setPreviewUrl(res.data.previewUrl);
-                setPreviewData(res.data);
+                setPreviewData({ ...res.data, id: fileId });
+                setTextContent(null);
+                setIsEditing(false);
             }
         } catch (err: any) {
             setError(err.message || 'Preview failed');
@@ -144,6 +152,39 @@ export default function ShareLinkPage() {
             setLoadingPreview(false);
         }
     };
+
+    const handleSaveEdit = async () => {
+        if (!token || !previewData) return;
+        setSavingEdit(true);
+        try {
+            // Need the fileId. If previewData.id is available, use it. Otherwise fallback to data.file.id
+            const fileId = previewData.id || data?.file?.id;
+            await sharingApi.editShared(token, fileId, editContent);
+            setTextContent(editContent);
+            setIsEditing(false);
+        } catch (err: any) {
+            setError(err.message || 'Failed to save edits');
+        } finally {
+            setSavingEdit(false);
+        }
+    };
+
+    // Auto-fetch Text Content for previews
+    useEffect(() => {
+        if (previewUrl && previewData) {
+            const mime = previewData.mimeType || '';
+            const isText = mime.startsWith('text/') || mime === 'application/json' || mime.includes('markdown');
+            if (isText && textContent === null) {
+                fetch(previewUrl)
+                    .then(r => r.text())
+                    .then(txt => {
+                        setTextContent(txt);
+                        setEditContent(txt);
+                    })
+                    .catch(() => setTextContent('Failed to load text content'));
+            }
+        }
+    }, [previewUrl, previewData, textContent]);
 
     // Loading
     if (loading) {
@@ -172,6 +213,8 @@ export default function ShareLinkPage() {
         const isPdf = mime === 'application/pdf';
         const isVideo = mime.startsWith('video/');
         const isAudio = mime.startsWith('audio/');
+        const isText = mime.startsWith('text/') || mime === 'application/json' || mime.includes('markdown');
+        const canEdit = data?.permission === 'editor' && isText;
 
         return (
             <div className={`flex min-h-screen flex-col ${theme === 'dark' ? 'bg-surface-950' : 'bg-surface-50'}`}>
@@ -208,7 +251,40 @@ export default function ShareLinkPage() {
                             <audio src={previewUrl} controls className="w-80" />
                         </div>
                     )}
-                    {!isImage && !isPdf && !isVideo && !isAudio && (
+                    {isText && textContent !== null && (
+                        <div className="w-full max-w-5xl h-[85vh] flex flex-col rounded-lg shadow-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 overflow-hidden">
+                            {canEdit && (
+                                <div className="flex items-center justify-end gap-2 p-2 border-b border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800">
+                                    {isEditing ? (
+                                        <>
+                                            <button onClick={() => setIsEditing(false)} className="px-3 py-1.5 text-xs font-medium text-surface-500 hover:text-surface-900 dark:hover:text-white transition-colors">Cancel</button>
+                                            <button onClick={handleSaveEdit} disabled={savingEdit} className="btn-primary py-1.5 px-3 text-xs flex items-center gap-1.5 !text-white">
+                                                {savingEdit ? <Loader2 className="h-3 w-3 animate-spin" /> : <Shield className="h-3 w-3" />}
+                                                Save
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button onClick={() => setIsEditing(true)} className="btn-primary py-1.5 px-3 text-xs !text-white">
+                                            Edit File
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                            {isEditing ? (
+                                <textarea
+                                    className="flex-1 w-full p-4 font-mono text-sm resize-none focus:outline-none bg-transparent text-surface-900 dark:text-gray-100"
+                                    value={editContent}
+                                    onChange={(e) => setEditContent(e.target.value)}
+                                    disabled={savingEdit}
+                                />
+                            ) : (
+                                <pre className="flex-1 p-4 font-mono text-sm overflow-auto text-surface-800 dark:text-gray-200 whitespace-pre-wrap">
+                                    {textContent}
+                                </pre>
+                            )}
+                        </div>
+                    )}
+                    {!isImage && !isPdf && !isVideo && !isAudio && !isText && (
                         <div className="text-center">
                             <FileText className={`mx-auto mb-3 h-16 w-16 ${theme === 'dark' ? 'text-surface-600' : 'text-surface-300'}`} />
                             <p className={`text-sm ${theme === 'dark' ? 'text-surface-400' : 'text-surface-500'}`}>Preview not available for this file type</p>
@@ -359,8 +435,8 @@ export default function ShareLinkPage() {
                                     value={otpInput}
                                     onChange={(e) => { setOtpInput(e.target.value.replace(/\D/g, '').slice(0, 6)); setAuthError(''); }}
                                     className={`w-full text-center text-2xl tracking-[0.5em] font-mono font-bold rounded-lg border px-4 py-3 ${theme === 'dark'
-                                            ? 'border-surface-700 bg-surface-800 text-white focus:border-brand-500'
-                                            : 'border-surface-200 bg-surface-50 text-surface-900 focus:border-brand-500'
+                                        ? 'border-surface-700 bg-surface-800 text-white focus:border-brand-500'
+                                        : 'border-surface-200 bg-surface-50 text-surface-900 focus:border-brand-500'
                                         } focus:outline-none focus:ring-1 focus:ring-brand-500`}
                                     placeholder="000000"
                                     onKeyDown={(e) => e.key === 'Enter' && handleVerifyOtp()}
@@ -408,8 +484,8 @@ export default function ShareLinkPage() {
                                             onClick={() => handlePreview()}
                                             disabled={loadingPreview}
                                             className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${theme === 'dark'
-                                                    ? 'bg-surface-800 text-surface-300 hover:bg-surface-700'
-                                                    : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
+                                                ? 'bg-surface-800 text-surface-300 hover:bg-surface-700'
+                                                : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
                                                 }`}
                                         >
                                             {loadingPreview ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}

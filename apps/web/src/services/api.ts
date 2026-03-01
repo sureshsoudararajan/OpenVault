@@ -74,13 +74,17 @@ async function request<T = unknown>(endpoint: string, options: RequestOptions = 
             throw new ApiError(401, 'Session expired', 'SESSION_EXPIRED');
         }
     }
-
+    // Otherwise throw standard error logic
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new ApiError(response.status, errorData.error?.message || 'Request failed', errorData.error?.code);
+        const errData = await response.json().catch(() => null);
+        const errorToThrow = errData?.error || new Error(`Request failed with status ${response.status}`);
+        if (errData?.data && typeof errorToThrow === 'object') {
+            (errorToThrow as any).data = errData.data;
+        }
+        throw errorToThrow;
     }
 
-    return response.json();
+    return response.json().catch(() => ({}));
 }
 
 export class ApiError extends Error {
@@ -211,6 +215,9 @@ export const sharingApi = {
 
     previewShared: (token: string, fileId?: string) =>
         request(`/sharing/link/${token}/preview`, { method: 'POST', body: { fileId } }),
+
+    editShared: (token: string, fileId: string | undefined, content: string) =>
+        request(`/sharing/link/${token}/edit`, { method: 'POST', body: { fileId, content } }),
 
     grantPermission: (data: { fileId?: string; folderId?: string; userId: string; role: string }) =>
         request('/sharing/permission', { method: 'POST', body: data }),

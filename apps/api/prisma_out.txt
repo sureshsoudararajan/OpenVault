@@ -1,0 +1,28 @@
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "openvault", schema "public" at "localhost:5432"
+
+Drift detected: Your database schema is not in sync with your migration history.
+
+The following is a summary of the differences between the expected database schema given your migrations files, and the actual schema of the database.
+
+It should be understood as the set of changes to get from the expected schema to the actual schema.
+
+[+] Added tables
+  - share_access_logs
+
+[*] Changed the `share_access_logs` table
+  [+] Added index on columns (created_at)
+  [+] Added index on columns (share_link_id)
+  [+] Added foreign key on columns (share_link_id)
+
+[*] Changed the `share_links` table
+  [+] Added column `is_active`
+  [+] Added column `opens_at`
+  [+] Added column `otp_code`
+  [+] Added column `otp_enabled`
+
+We need to reset the "public" schema at "localhost:5432"
+
+You may use prisma migrate reset to drop the development database.
+All data will be lost.
