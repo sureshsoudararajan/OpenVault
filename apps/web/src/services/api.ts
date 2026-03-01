@@ -191,13 +191,26 @@ export const versionApi = {
 // ============================================
 
 export const sharingApi = {
-    createLink: (data: { fileId?: string; folderId?: string; permission?: string; password?: string; expiresIn?: number }) =>
+    createLink: (data: {
+        fileId?: string; folderId?: string; permission?: string;
+        password?: string; opensAt?: string; expiresAt?: string;
+        expiresIn?: number; maxDownloads?: number; otpEnabled?: boolean;
+    }) =>
         request('/sharing/link', { method: 'POST', body: data }),
 
     getLink: (token: string) => request(`/sharing/link/${token}`),
 
     verifyPassword: (token: string, password: string) =>
         request(`/sharing/link/${token}/verify`, { method: 'POST', body: { password } }),
+
+    verifyOtp: (token: string, otp: string) =>
+        request(`/sharing/link/${token}/verify-otp`, { method: 'POST', body: { otp } }),
+
+    downloadShared: (token: string, fileId?: string) =>
+        request(`/sharing/link/${token}/download`, { method: 'POST', body: { fileId } }),
+
+    previewShared: (token: string, fileId?: string) =>
+        request(`/sharing/link/${token}/preview`, { method: 'POST', body: { fileId } }),
 
     grantPermission: (data: { fileId?: string; folderId?: string; userId: string; role: string }) =>
         request('/sharing/permission', { method: 'POST', body: data }),
