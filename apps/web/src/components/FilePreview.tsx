@@ -34,6 +34,9 @@ const WORD_MIMES = [
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/msword',
 ];
+const ODT_MIMES = [
+    'application/vnd.oasis.opendocument.text',
+];
 
 export default function FilePreview({
     fileId, fileName, mimeType, fileSize, onClose, onNext, onPrev
@@ -77,7 +80,8 @@ export default function FilePreview({
     const isText = (mimeType.startsWith('text/') || mimeType === 'application/json' || mimeType === 'application/xml') && !isMarkdown;
     const isExcel = EXCEL_MIMES.includes(mimeType) || fileName.match(/\.(xlsx?|csv)$/i);
     const isWord = WORD_MIMES.includes(mimeType) || fileName.match(/\.docx?$/i);
-    const isPreviewable = isImage || isVideo || isAudio || isPdf || isText || isMarkdown || isExcel || isWord;
+    const isOdt = ODT_MIMES.includes(mimeType) || fileName.match(/\.odt$/i);
+    const isPreviewable = isImage || isVideo || isAudio || isPdf || isText || isMarkdown || isExcel || isWord || isOdt;
 
     const getFileIcon = () => {
         if (isImage) return <Image className="h-16 w-16 text-pink-400" />;
@@ -86,6 +90,7 @@ export default function FilePreview({
         if (isPdf) return <FileText className="h-16 w-16 text-red-400" />;
         if (isExcel) return <FileSpreadsheet className="h-16 w-16 text-emerald-400" />;
         if (isWord) return <FileText className="h-16 w-16 text-blue-400" />;
+        if (isOdt) return <FileText className="h-16 w-16 text-orange-400" />;
         if (mimeType.includes('zip') || mimeType.includes('archive')) return <FileArchive className="h-16 w-16 text-amber-400" />;
         return <File className="h-16 w-16 text-brand-400" />;
     };
@@ -111,7 +116,8 @@ export default function FilePreview({
                             {isPdf && <FileText className="h-5 w-5 text-red-400" />}
                             {isExcel && <FileSpreadsheet className="h-5 w-5 text-emerald-400" />}
                             {isWord && <FileText className="h-5 w-5 text-blue-400" />}
-                            {!isImage && !isVideo && !isAudio && !isPdf && !isExcel && !isWord && <File className="h-5 w-5 text-brand-400" />}
+                            {isOdt && <FileText className="h-5 w-5 text-orange-400" />}
+                            {!isImage && !isVideo && !isAudio && !isPdf && !isExcel && !isWord && !isOdt && <File className="h-5 w-5 text-brand-400" />}
                         </div>
                         <div className="min-w-0">
                             <p className="truncate text-sm font-medium text-surface-900 dark:text-white">{fileName}</p>
@@ -188,6 +194,7 @@ export default function FilePreview({
                             {isMarkdown && downloadUrl && <MarkdownPreview url={downloadUrl} fileId={fileId} />}
                             {isExcel && downloadUrl && <ExcelPreview url={downloadUrl} />}
                             {isWord && downloadUrl && <WordPreview url={downloadUrl} />}
+                            {isOdt && downloadUrl && <OdtPreview url={downloadUrl} />}
                         </>
                     )}
                 </div>
@@ -577,6 +584,166 @@ function WordPreview({ url }: { url: string }) {
                     prose-table:border-surface-200 dark:prose-table:border-surface-700
                     prose-th:bg-surface-50 dark:prose-th:bg-surface-800
                     prose-th:text-surface-900 dark:prose-th:text-white
+                    prose-td:border-surface-200 dark:prose-td:border-surface-700"
+                dangerouslySetInnerHTML={{ __html: html }}
+            />
+        </div>
+    );
+}
+
+/* ─── ODT Preview ─── */
+function OdtPreview({ url }: { url: string }) {
+    const [html, setHtml] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        const load = async () => {
+            setLoading(true);
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const buf = await res.arrayBuffer();
+
+                const JSZip = (await import('jszip')).default;
+                const zip = await JSZip.loadAsync(buf);
+
+                const contentFile = zip.file('content.xml');
+                if (!contentFile) throw new Error('No content.xml found in ODT file');
+
+                const xmlText = await contentFile.async('text');
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(xmlText, 'text/xml');
+
+                // Convert ODF XML to HTML
+                const bodyEl = doc.getElementsByTagNameNS('urn:oasis:names:tc:opendocument:xmlns:office:1.0', 'body')[0];
+                const textEl = bodyEl?.getElementsByTagNameNS('urn:oasis:names:tc:opendocument:xmlns:office:1.0', 'text')[0];
+
+                if (!textEl) throw new Error('No text content found');
+
+                let htmlContent = '';
+                const TEXT_NS = 'urn:oasis:names:tc:opendocument:xmlns:text:1.0';
+                const TABLE_NS = 'urn:oasis:names:tc:opendocument:xmlns:table:1.0';
+
+                const processNode = (node: Element): string => {
+                    let result = '';
+                    for (let i = 0; i < node.childNodes.length; i++) {
+                        const child = node.childNodes[i];
+                        if (child.nodeType === Node.TEXT_NODE) {
+                            result += child.textContent || '';
+                        } else if (child.nodeType === Node.ELEMENT_NODE) {
+                            const el = child as Element;
+                            const localName = el.localName;
+                            const ns = el.namespaceURI;
+
+                            if (ns === TEXT_NS) {
+                                switch (localName) {
+                                    case 'p': {
+                                        const styleName = el.getAttributeNS(TEXT_NS, 'style-name') || '';
+                                        if (styleName.includes('Heading') || styleName.match(/^H\d/i)) {
+                                            const level = styleName.match(/\d/) ? styleName.match(/\d/)![0] : '2';
+                                            result += `<h${level}>${processNode(el)}</h${level}>`;
+                                        } else {
+                                            result += `<p>${processNode(el)}</p>`;
+                                        }
+                                        break;
+                                    }
+                                    case 'h': {
+                                        const level = el.getAttributeNS(TEXT_NS, 'outline-level') || '2';
+                                        result += `<h${level}>${processNode(el)}</h${level}>`;
+                                        break;
+                                    }
+                                    case 'span':
+                                        result += `<span>${processNode(el)}</span>`;
+                                        break;
+                                    case 'a': {
+                                        const href = el.getAttributeNS('http://www.w3.org/1999/xlink', 'href') || '#';
+                                        result += `<a href="${href}">${processNode(el)}</a>`;
+                                        break;
+                                    }
+                                    case 'list':
+                                        result += `<ul>${processNode(el)}</ul>`;
+                                        break;
+                                    case 'list-item':
+                                        result += `<li>${processNode(el)}</li>`;
+                                        break;
+                                    case 'line-break':
+                                        result += '<br/>';
+                                        break;
+                                    case 'tab':
+                                        result += '&emsp;';
+                                        break;
+                                    case 's': {
+                                        const count = parseInt(el.getAttributeNS(TEXT_NS, 'c') || '1');
+                                        result += '&nbsp;'.repeat(count);
+                                        break;
+                                    }
+                                    default:
+                                        result += processNode(el);
+                                }
+                            } else if (ns === TABLE_NS) {
+                                switch (localName) {
+                                    case 'table':
+                                        result += `<table><tbody>${processNode(el)}</tbody></table>`;
+                                        break;
+                                    case 'table-row':
+                                        result += `<tr>${processNode(el)}</tr>`;
+                                        break;
+                                    case 'table-cell':
+                                        result += `<td>${processNode(el)}</td>`;
+                                        break;
+                                    default:
+                                        result += processNode(el);
+                                }
+                            } else {
+                                result += processNode(el);
+                            }
+                        }
+                    }
+                    return result;
+                };
+
+                htmlContent = processNode(textEl);
+
+                if (!htmlContent.trim()) {
+                    setError('Document appears to be empty');
+                } else {
+                    setHtml(htmlContent);
+                }
+            } catch (err: any) {
+                console.error('ODT preview error:', err);
+                setError(`Failed to parse ODT: ${err.message || 'Unknown error'}`);
+            } finally {
+                setLoading(false);
+            }
+        };
+        load();
+    }, [url]);
+
+    if (loading) return (
+        <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-6 w-6 animate-spin text-brand-400" />
+            <p className="text-xs text-surface-500">Parsing ODT document...</p>
+        </div>
+    );
+    if (error) return (
+        <div className="flex flex-col items-center gap-3 text-center">
+            <FileText className="h-12 w-12 text-orange-400" />
+            <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
+            <p className="text-xs text-surface-500">Try downloading the file to view it in LibreOffice</p>
+        </div>
+    );
+
+    return (
+        <div className="h-full w-full overflow-auto rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-8">
+            <div
+                className="prose prose-sm dark:prose-invert max-w-none
+                    prose-headings:text-surface-900 dark:prose-headings:text-white
+                    prose-p:text-surface-700 dark:prose-p:text-surface-300
+                    prose-strong:text-surface-900 dark:prose-strong:text-white
+                    prose-a:text-brand-600 dark:prose-a:text-brand-400
+                    prose-table:border-surface-200 dark:prose-table:border-surface-700
+                    prose-th:bg-surface-50 dark:prose-th:bg-surface-800
                     prose-td:border-surface-200 dark:prose-td:border-surface-700"
                 dangerouslySetInnerHTML={{ __html: html }}
             />
