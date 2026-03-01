@@ -13,7 +13,7 @@ interface DetailsDialogProps {
     onClose: () => void;
 }
 
-type Tab = 'info' | 'activity' | 'sharing';
+type Tab = 'info' | 'sharing';
 
 const formatSize = (bytes: number) => {
     if (bytes === 0) return '0 B';
@@ -82,11 +82,10 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
                     : await folderApi.get(id);
                 setDetails(res.data || res);
 
-                // Load permissions
                 try {
                     const permRes: any = await sharingApi.listPermissions(id);
                     setPermissions(permRes.data || []);
-                } catch { /* ignore if permissions fail */ }
+                } catch { /* ignore */ }
             } catch (err) {
                 console.error('Failed to load details:', err);
             } finally {
@@ -114,24 +113,24 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
     ];
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/70 backdrop-blur-sm animate-fade-in">
             <div className="absolute inset-0" onClick={onClose} />
-            <div className="relative z-10 w-full max-w-md rounded-xl border border-surface-700 bg-surface-900 shadow-2xl overflow-hidden animate-slide-up">
+            <div className="relative z-10 w-full max-w-md rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 shadow-2xl overflow-hidden animate-slide-up">
 
-                {/* Hero Header with gradient */}
-                <div className="relative bg-gradient-to-b from-surface-800 to-surface-900 px-5 pt-5 pb-4">
-                    <button onClick={onClose} className="absolute right-3 top-3 rounded-lg p-1.5 text-surface-400 transition-colors hover:bg-surface-700 hover:text-surface-900 dark:text-white">
+                {/* Hero Header */}
+                <div className="relative bg-surface-50 dark:bg-surface-800 px-5 pt-5 pb-4">
+                    <button onClick={onClose} className="absolute right-3 top-3 rounded-lg p-1.5 text-surface-400 transition-colors hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-surface-900 dark:hover:text-white">
                         <X className="h-4 w-4" />
                     </button>
 
                     <div className="flex items-start gap-4">
-                        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-surface-900/60 border border-surface-700 backdrop-blur-sm">
+                        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-white dark:bg-surface-900/60 border border-surface-200 dark:border-surface-700">
                             {type === 'folder' ? <FolderOpen className="h-7 w-7 text-brand-400" /> : getFileIcon(details?.mimeType, 'h-7 w-7')}
                         </div>
                         <div className="min-w-0 flex-1 pt-1">
                             <p className="truncate text-base font-semibold text-surface-900 dark:text-white">{name}</p>
                             <div className="mt-1 flex items-center gap-2">
-                                <span className="inline-flex items-center rounded-md bg-brand-500/10 px-2 py-0.5 text-[10px] font-medium text-brand-400 border border-brand-500/20">
+                                <span className="inline-flex items-center rounded-md bg-brand-500/10 px-2 py-0.5 text-[10px] font-medium text-brand-600 dark:text-brand-400 border border-brand-500/20">
                                     {type === 'folder' ? 'Folder' : getFileCategory(details?.mimeType)}
                                 </span>
                                 {type === 'file' && (
@@ -146,33 +145,15 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
                         <div className="mt-4 grid grid-cols-3 gap-2">
                             {type === 'file' ? (
                                 <>
-                                    <div className="rounded-lg bg-surface-900/50 border border-surface-700/50 px-3 py-2 text-center">
-                                        <p className="text-[10px] uppercase tracking-wider text-surface-500">Size</p>
-                                        <p className="text-xs font-semibold text-white mt-0.5">{formatSize(Number(details.size) || 0)}</p>
-                                    </div>
-                                    <div className="rounded-lg bg-surface-900/50 border border-surface-700/50 px-3 py-2 text-center">
-                                        <p className="text-[10px] uppercase tracking-wider text-surface-500">Version</p>
-                                        <p className="text-xs font-semibold text-white mt-0.5">v{details.currentVersion || 1}</p>
-                                    </div>
-                                    <div className="rounded-lg bg-surface-900/50 border border-surface-700/50 px-3 py-2 text-center">
-                                        <p className="text-[10px] uppercase tracking-wider text-surface-500">Modified</p>
-                                        <p className="text-xs font-semibold text-white mt-0.5">{getRelativeTime(details.updatedAt || details.createdAt)}</p>
-                                    </div>
+                                    <StatBox label="Size" value={formatSize(Number(details.size) || 0)} />
+                                    <StatBox label="Version" value={`v${details.currentVersion || 1}`} />
+                                    <StatBox label="Modified" value={getRelativeTime(details.updatedAt || details.createdAt)} />
                                 </>
                             ) : (
                                 <>
-                                    <div className="rounded-lg bg-surface-900/50 border border-surface-700/50 px-3 py-2 text-center">
-                                        <p className="text-[10px] uppercase tracking-wider text-surface-500">Files</p>
-                                        <p className="text-xs font-semibold text-white mt-0.5">{details._count?.files ?? 0}</p>
-                                    </div>
-                                    <div className="rounded-lg bg-surface-900/50 border border-surface-700/50 px-3 py-2 text-center">
-                                        <p className="text-[10px] uppercase tracking-wider text-surface-500">Subfolders</p>
-                                        <p className="text-xs font-semibold text-white mt-0.5">{details._count?.children ?? 0}</p>
-                                    </div>
-                                    <div className="rounded-lg bg-surface-900/50 border border-surface-700/50 px-3 py-2 text-center">
-                                        <p className="text-[10px] uppercase tracking-wider text-surface-500">Created</p>
-                                        <p className="text-xs font-semibold text-white mt-0.5">{getRelativeTime(details.createdAt)}</p>
-                                    </div>
+                                    <StatBox label="Files" value={String(details._count?.files ?? 0)} />
+                                    <StatBox label="Subfolders" value={String(details._count?.children ?? 0)} />
+                                    <StatBox label="Created" value={getRelativeTime(details.createdAt)} />
                                 </>
                             )}
                         </div>
@@ -180,14 +161,14 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
                 </div>
 
                 {/* Tab Bar */}
-                <div className="flex border-b border-surface-700 bg-surface-900/50">
+                <div className="flex border-b border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900">
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium transition-all border-b-2 ${activeTab === tab.id
-                                ? 'border-brand-500 text-brand-400'
-                                : 'border-transparent text-surface-500 hover:text-surface-300'
+                                ? 'border-brand-500 text-brand-600 dark:text-brand-400'
+                                : 'border-transparent text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'
                                 }`}
                         >
                             {tab.icon}
@@ -204,10 +185,10 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
                         </div>
                     ) : activeTab === 'info' ? (
                         <div className="space-y-4">
-                            {/* Properties Section */}
+                            {/* Properties */}
                             <div>
                                 <h4 className="mb-2.5 text-[10px] uppercase tracking-widest text-surface-500 font-semibold">Properties</h4>
-                                <div className="space-y-0 rounded-lg border border-surface-700 bg-surface-800/30 overflow-hidden divide-y divide-surface-700/50">
+                                <div className="rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/30 overflow-hidden divide-y divide-surface-200 dark:divide-surface-700/50">
                                     {type === 'file' && (
                                         <>
                                             <DetailRow icon={<Tag className="h-3.5 w-3.5" />} label="MIME Type" value={details?.mimeType || 'Unknown'} />
@@ -223,40 +204,28 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
                                 </div>
                             </div>
 
-                            {/* Security Section (files only) */}
+                            {/* Security (files only) */}
                             {type === 'file' && details?.sha256 && (
                                 <div>
                                     <h4 className="mb-2.5 text-[10px] uppercase tracking-widest text-surface-500 font-semibold">Security & Integrity</h4>
-                                    <div className="rounded-lg border border-surface-700 bg-surface-800/30 overflow-hidden divide-y divide-surface-700/50">
-                                        <div className="flex items-center gap-3 px-3 py-2.5">
-                                            <Hash className="h-3.5 w-3.5 text-surface-500 flex-shrink-0" />
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-[10px] text-surface-500 uppercase tracking-wider">SHA-256 Hash</p>
-                                                <p className="text-xs text-surface-300 font-mono mt-0.5 truncate">{details.sha256}</p>
-                                            </div>
-                                            <button
-                                                onClick={() => copyToClipboard(details.sha256, 'sha256')}
-                                                className="flex-shrink-0 rounded-md p-1 text-surface-500 hover:text-white hover:bg-surface-700 transition-colors"
-                                                title="Copy hash"
-                                            >
-                                                {copiedField === 'sha256' ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                                            </button>
-                                        </div>
+                                    <div className="rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/30 overflow-hidden divide-y divide-surface-200 dark:divide-surface-700/50">
+                                        <CopyRow
+                                            icon={<Hash className="h-3.5 w-3.5" />}
+                                            label="SHA-256 Hash"
+                                            value={details.sha256}
+                                            field="sha256"
+                                            copiedField={copiedField}
+                                            onCopy={copyToClipboard}
+                                        />
                                         {details?.storageKey && (
-                                            <div className="flex items-center gap-3 px-3 py-2.5">
-                                                <Shield className="h-3.5 w-3.5 text-surface-500 flex-shrink-0" />
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-[10px] text-surface-500 uppercase tracking-wider">Storage Key</p>
-                                                    <p className="text-xs text-surface-300 font-mono mt-0.5 truncate">{details.storageKey}</p>
-                                                </div>
-                                                <button
-                                                    onClick={() => copyToClipboard(details.storageKey, 'storageKey')}
-                                                    className="flex-shrink-0 rounded-md p-1 text-surface-500 hover:text-white hover:bg-surface-700 transition-colors"
-                                                    title="Copy key"
-                                                >
-                                                    {copiedField === 'storageKey' ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                                                </button>
-                                            </div>
+                                            <CopyRow
+                                                icon={<Shield className="h-3.5 w-3.5" />}
+                                                label="Storage Key"
+                                                value={details.storageKey}
+                                                field="storageKey"
+                                                copiedField={copiedField}
+                                                onCopy={copyToClipboard}
+                                            />
                                         )}
                                     </div>
                                 </div>
@@ -265,21 +234,15 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
                             {/* Resource ID */}
                             <div>
                                 <h4 className="mb-2.5 text-[10px] uppercase tracking-widest text-surface-500 font-semibold">Identifiers</h4>
-                                <div className="rounded-lg border border-surface-700 bg-surface-800/30 overflow-hidden">
-                                    <div className="flex items-center gap-3 px-3 py-2.5">
-                                        <Hash className="h-3.5 w-3.5 text-surface-500 flex-shrink-0" />
-                                        <div className="min-w-0 flex-1">
-                                            <p className="text-[10px] text-surface-500 uppercase tracking-wider">Resource ID</p>
-                                            <p className="text-xs text-surface-300 font-mono mt-0.5 truncate">{id}</p>
-                                        </div>
-                                        <button
-                                            onClick={() => copyToClipboard(id, 'id')}
-                                            className="flex-shrink-0 rounded-md p-1 text-surface-500 hover:text-white hover:bg-surface-700 transition-colors"
-                                            title="Copy ID"
-                                        >
-                                            {copiedField === 'id' ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                                        </button>
-                                    </div>
+                                <div className="rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/30 overflow-hidden">
+                                    <CopyRow
+                                        icon={<Hash className="h-3.5 w-3.5" />}
+                                        label="Resource ID"
+                                        value={id}
+                                        field="id"
+                                        copiedField={copiedField}
+                                        onCopy={copyToClipboard}
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -290,17 +253,17 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
                                     <h4 className="text-[10px] uppercase tracking-widest text-surface-500 font-semibold">Users with Access</h4>
                                     <div className="space-y-2">
                                         {permissions.map((perm: any) => (
-                                            <div key={perm.id} className="flex items-center gap-3 rounded-lg border border-surface-700 bg-surface-800/30 px-3 py-2.5">
-                                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-purple-500 text-xs font-semibold text-white">
+                                            <div key={perm.id} className="flex items-center gap-3 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/30 px-3 py-2.5">
+                                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-xs font-semibold text-white">
                                                     {perm.grantedTo?.name?.charAt(0).toUpperCase() || '?'}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm text-white truncate">{perm.grantedTo?.name || 'Unknown'}</p>
+                                                    <p className="text-sm text-surface-900 dark:text-white truncate">{perm.grantedTo?.name || 'Unknown'}</p>
                                                     <p className="text-xs text-surface-500 truncate">{perm.grantedTo?.email}</p>
                                                 </div>
-                                                <span className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${perm.role === 'owner' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                                                    perm.role === 'editor' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                                                        'bg-surface-700 text-surface-300 border border-surface-600'
+                                                <span className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${perm.role === 'owner' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20' :
+                                                    perm.role === 'editor' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' :
+                                                        'bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300 border border-surface-200 dark:border-surface-600'
                                                     }`}>
                                                     {perm.role}
                                                 </span>
@@ -310,11 +273,11 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
                                 </>
                             ) : (
                                 <div className="flex flex-col items-center justify-center py-8 text-center">
-                                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-800 mb-3">
-                                        <Link2 className="h-6 w-6 text-surface-600" />
+                                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-100 dark:bg-surface-800 mb-3">
+                                        <Link2 className="h-6 w-6 text-surface-400 dark:text-surface-600" />
                                     </div>
-                                    <p className="text-sm text-surface-400">Not shared yet</p>
-                                    <p className="text-xs text-surface-600 mt-1">Use the Share option to create a share link</p>
+                                    <p className="text-sm text-surface-500 dark:text-surface-400">Not shared yet</p>
+                                    <p className="text-xs text-surface-400 dark:text-surface-600 mt-1">Use the Share option to create a share link</p>
                                 </div>
                             )}
                         </div>
@@ -325,13 +288,46 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
     );
 }
 
-/** Reusable detail row component */
+/** Stat box component */
+function StatBox({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-lg bg-white dark:bg-surface-900/50 border border-surface-200 dark:border-surface-700/50 px-3 py-2 text-center">
+            <p className="text-[10px] uppercase tracking-wider text-surface-500">{label}</p>
+            <p className="text-xs font-semibold text-surface-900 dark:text-white mt-0.5">{value}</p>
+        </div>
+    );
+}
+
+/** Detail row component */
 function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
     return (
         <div className="flex items-center gap-3 px-3 py-2.5">
-            <span className="text-surface-500 flex-shrink-0">{icon}</span>
+            <span className="text-surface-400 dark:text-surface-500 flex-shrink-0">{icon}</span>
             <span className="text-[10px] uppercase tracking-wider text-surface-500 w-20 flex-shrink-0">{label}</span>
-            <span className="text-xs text-surface-200 truncate flex-1 text-right">{value}</span>
+            <span className="text-xs text-surface-700 dark:text-surface-200 truncate flex-1 text-right">{value}</span>
+        </div>
+    );
+}
+
+/** Copyable row component */
+function CopyRow({ icon, label, value, field, copiedField, onCopy }: {
+    icon: React.ReactNode; label: string; value: string; field: string;
+    copiedField: string; onCopy: (text: string, field: string) => void;
+}) {
+    return (
+        <div className="flex items-center gap-3 px-3 py-2.5">
+            <span className="text-surface-400 dark:text-surface-500 flex-shrink-0">{icon}</span>
+            <div className="min-w-0 flex-1">
+                <p className="text-[10px] text-surface-500 uppercase tracking-wider">{label}</p>
+                <p className="text-xs text-surface-600 dark:text-surface-300 font-mono mt-0.5 truncate">{value}</p>
+            </div>
+            <button
+                onClick={() => onCopy(value, field)}
+                className="flex-shrink-0 rounded-md p-1 text-surface-400 hover:text-surface-900 dark:hover:text-white hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
+                title={`Copy ${label.toLowerCase()}`}
+            >
+                {copiedField === field ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
         </div>
     );
 }
