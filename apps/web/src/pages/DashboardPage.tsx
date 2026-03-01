@@ -262,7 +262,7 @@ export default function DashboardPage() {
                         <FolderPlus className="h-4 w-4" /> New Folder
                     </button>
 
-                    <label className="btn-primary flex items-center gap-1.5 text-sm cursor-pointer px-4 py-1.5">
+                    <label className="btn-primary flex items-center gap-1.5 text-sm cursor-pointer px-4 py-1.5 !text-white">
                         <Upload className="h-4 w-4" /> Upload
                         <input type="file" multiple className="hidden" onChange={handleUpload} />
                     </label>

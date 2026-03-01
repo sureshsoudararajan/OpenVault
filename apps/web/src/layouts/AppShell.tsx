@@ -47,8 +47,11 @@ export default function AppShell() {
         navigate('/login');
     };
 
-    const storagePercent = user ? Math.round((user.storageUsed / user.storageQuota) * 100) : 0;
+    const used = user?.storageUsed || 0;
+    const quota = user?.storageQuota || (5 * 1024 * 1024 * 1024); // default 5GB
+    const storagePercent = quota > 0 ? Math.round((used / quota) * 100) : 0;
     const formatStorage = (bytes: number) => {
+        if (!bytes || isNaN(bytes)) return '0 MB';
         const gb = bytes / (1024 * 1024 * 1024);
         return gb >= 1 ? `${gb.toFixed(1)} GB` : `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
     };
@@ -70,7 +73,7 @@ export default function AppShell() {
 
                 {/* Upload Button */}
                 <div className="px-4 py-4">
-                    <label className="btn-primary flex w-full items-center justify-center gap-2 text-sm cursor-pointer">
+                    <label className="btn-primary flex w-full items-center justify-center gap-2 text-sm cursor-pointer !text-white">
                         <Upload className="h-4 w-4" />
                         Upload Files
                         <input type="file" multiple className="hidden" onChange={handleSidebarUpload} />
@@ -110,7 +113,7 @@ export default function AppShell() {
                         />
                     </div>
                     <p className="mt-1.5 text-xs text-surface-500">
-                        {user ? `${formatStorage(user.storageUsed)} / ${formatStorage(user.storageQuota)}` : '—'}
+                        {`${formatStorage(used)} / ${formatStorage(quota)}`}
                     </p>
                 </div>
             </aside>
