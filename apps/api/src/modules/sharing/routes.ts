@@ -81,8 +81,12 @@ export async function sharingRoutes(app: FastifyInstance) {
             include: {
                 file: { select: { id: true, name: true, mimeType: true, size: true } },
                 folder: {
-                    select: { id: true, name: true },
-                    include: { files: { where: { isTrashed: false }, select: { id: true, name: true, mimeType: true, size: true } } },
+                    include: {
+                        files: {
+                            where: { isTrashed: false },
+                            select: { id: true, name: true, mimeType: true, size: true },
+                        },
+                    },
                 },
             },
         });
