@@ -51,15 +51,6 @@ function validateLinkAccess(link: any): { valid: boolean; code: string; message:
 }
 
 export async function sharingRoutes(app: FastifyInstance) {
-    app.get('/debug', async () => {
-        const links = await prisma.shareLink.findMany({
-            orderBy: { createdAt: 'desc' },
-            take: 5,
-            select: { id: true, opensAt: true, isActive: true }
-        });
-        return { links };
-    });
-
     // POST /api/sharing/link — Create a share link
     app.post('/link', { preHandler: [authGuard] }, async (request, reply) => {
         const body = createShareLinkSchema.parse(request.body);
