@@ -65,7 +65,7 @@ export default function SettingsPage() {
         <div className="animate-fade-in max-w-2xl">
             <div className="mb-8 flex items-center gap-3">
                 <Settings className="h-6 w-6 text-brand-400" />
-                <h1 className="text-xl font-semibold text-white">Settings</h1>
+                <h1 className="text-xl font-semibold text-surface-900 dark:text-white">Settings</h1>
             </div>
 
             {/* Profile Section */}
@@ -118,7 +118,7 @@ export default function SettingsPage() {
 
                 <div className="flex items-center justify-between">
                     <div>
-                        <p className="text-sm font-medium text-white">Two-Factor Authentication</p>
+                        <p className="text-sm font-medium text-surface-900 dark:text-white">Two-Factor Authentication</p>
                         <p className="text-xs text-surface-500">Add an extra layer of security with TOTP</p>
                     </div>
                     {user?.mfaEnabled ? (

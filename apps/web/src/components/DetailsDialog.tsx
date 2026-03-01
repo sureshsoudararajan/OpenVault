@@ -120,7 +120,7 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
 
                 {/* Hero Header with gradient */}
                 <div className="relative bg-gradient-to-b from-surface-800 to-surface-900 px-5 pt-5 pb-4">
-                    <button onClick={onClose} className="absolute right-3 top-3 rounded-lg p-1.5 text-surface-400 transition-colors hover:bg-surface-700 hover:text-white">
+                    <button onClick={onClose} className="absolute right-3 top-3 rounded-lg p-1.5 text-surface-400 transition-colors hover:bg-surface-700 hover:text-surface-900 dark:text-white">
                         <X className="h-4 w-4" />
                     </button>
 
@@ -129,7 +129,7 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
                             {type === 'folder' ? <FolderOpen className="h-7 w-7 text-brand-400" /> : getFileIcon(details?.mimeType, 'h-7 w-7')}
                         </div>
                         <div className="min-w-0 flex-1 pt-1">
-                            <p className="truncate text-base font-semibold text-white">{name}</p>
+                            <p className="truncate text-base font-semibold text-surface-900 dark:text-white">{name}</p>
                             <div className="mt-1 flex items-center gap-2">
                                 <span className="inline-flex items-center rounded-md bg-brand-500/10 px-2 py-0.5 text-[10px] font-medium text-brand-400 border border-brand-500/20">
                                     {type === 'folder' ? 'Folder' : getFileCategory(details?.mimeType)}
@@ -186,8 +186,8 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium transition-all border-b-2 ${activeTab === tab.id
-                                    ? 'border-brand-500 text-brand-400'
-                                    : 'border-transparent text-surface-500 hover:text-surface-300'
+                                ? 'border-brand-500 text-brand-400'
+                                : 'border-transparent text-surface-500 hover:text-surface-300'
                                 }`}
                         >
                             {tab.icon}
@@ -299,8 +299,8 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
                                                     <p className="text-xs text-surface-500 truncate">{perm.grantedTo?.email}</p>
                                                 </div>
                                                 <span className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${perm.role === 'owner' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                                                        perm.role === 'editor' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                                                            'bg-surface-700 text-surface-300 border border-surface-600'
+                                                    perm.role === 'editor' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                                                        'bg-surface-700 text-surface-300 border border-surface-600'
                                                     }`}>
                                                     {perm.role}
                                                 </span>

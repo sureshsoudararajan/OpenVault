@@ -86,11 +86,11 @@ export default function ShareDialog({ resourceId, resourceType, resourceName, on
                             <Link2 className="h-5 w-5 text-brand-400" />
                         </div>
                         <div>
-                            <h3 className="text-sm font-semibold text-white">Share {resourceType}</h3>
+                            <h3 className="text-sm font-semibold text-surface-900 dark:text-white">Share {resourceType}</h3>
                             <p className="text-xs text-surface-400 truncate max-w-[250px]">{resourceName}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="rounded-lg p-1.5 text-surface-400 transition-colors hover:bg-surface-800 hover:text-white">
+                    <button onClick={onClose} className="rounded-lg p-1.5 text-surface-400 transition-colors hover:bg-surface-800 hover:text-surface-900 dark:text-white">
                         <X className="h-4 w-4" />
                     </button>
                 </div>
@@ -110,7 +110,7 @@ export default function ShareDialog({ resourceId, resourceType, resourceName, on
                             {copied && (
                                 <p className="text-center text-xs text-emerald-400 animate-fade-in">Link copied to clipboard!</p>
                             )}
-                            <button onClick={() => { setShareUrl(''); }} className="text-xs text-surface-400 hover:text-white transition-colors">
+                            <button onClick={() => { setShareUrl(''); }} className="text-xs text-surface-400 hover:text-surface-900 dark:text-white transition-colors">
                                 Create another link
                             </button>
                         </div>

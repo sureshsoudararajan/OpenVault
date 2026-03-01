@@ -233,7 +233,7 @@ export default function DashboardPage() {
                                 {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-surface-600" />}
                                 <button
                                     onClick={() => crumb.id ? navigate(`/folder/${crumb.id}`) : navigate('/')}
-                                    className={`transition-colors hover:text-white ${i === breadcrumbs.length - 1 ? 'font-medium text-white' : 'text-surface-400'}`}
+                                    className={`transition-colors hover:text-white ${i === breadcrumbs.length - 1 ? 'font-medium text-surface-900 dark:text-white' : 'text-surface-400'}`}
                                 >
                                     {crumb.name}
                                 </button>
@@ -327,7 +327,7 @@ export default function DashboardPage() {
                                                 </div>
                                             ) : (
                                                 <>
-                                                    <p className="truncate text-sm font-medium text-white">{folder.name}</p>
+                                                    <p className="truncate text-sm font-medium text-surface-900 dark:text-white">{folder.name}</p>
                                                     <p className="text-xs text-surface-500">{folder._count?.files ?? 0} files</p>
                                                 </>
                                             )}
@@ -374,7 +374,7 @@ export default function DashboardPage() {
                                                 </div>
                                             ) : (
                                                 <>
-                                                    <p className="truncate text-sm font-medium text-white">{file.name}</p>
+                                                    <p className="truncate text-sm font-medium text-surface-900 dark:text-white">{file.name}</p>
                                                     <p className="mt-0.5 text-xs text-surface-500">{formatSize(file.size)}</p>
                                                 </>
                                             )}
@@ -411,7 +411,7 @@ export default function DashboardPage() {
                                                         />
                                                     </div>
                                                 ) : (
-                                                    <p className="truncate text-sm font-medium text-white">{file.name}</p>
+                                                    <p className="truncate text-sm font-medium text-surface-900 dark:text-white">{file.name}</p>
                                                 )}
                                             </div>
                                             <span className="text-xs text-surface-500">{formatSize(file.size)}</span>
@@ -451,7 +451,7 @@ export default function DashboardPage() {
                 <>
                     <div className="fixed inset-0 z-40" onClick={closeContextMenu} onContextMenu={(e) => { e.preventDefault(); closeContextMenu(); }} />
                     <div
-                        className="fixed z-50 w-52 rounded-xl border border-surface-700 bg-surface-900/95 py-1.5 shadow-xl backdrop-blur-sm animate-scale-in"
+                        className="fixed z-50 w-52 rounded-xl border border-surface-700 dark:border-surface-700 bg-white dark:bg-surface-900/95 py-1.5 shadow-xl backdrop-blur-sm animate-scale-in"
                         style={getMenuPosition(contextMenu.x, contextMenu.y)}
                     >
                         {/* Header */}

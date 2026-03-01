@@ -32,7 +32,7 @@ export default function RegisterPage() {
 
     return (
         <>
-            <h2 className="mb-6 text-xl font-semibold text-white">Create your account</h2>
+            <h2 className="mb-6 text-xl font-semibold text-surface-900 dark:text-white">Create your account</h2>
 
             {error && (
                 <div className="mb-4 rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400 animate-fade-in">

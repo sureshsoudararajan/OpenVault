@@ -44,7 +44,7 @@ export default function TrashPage() {
         <div className="animate-fade-in">
             <div className="mb-6 flex items-center gap-3">
                 <Trash2 className="h-6 w-6 text-red-400" />
-                <h1 className="text-xl font-semibold text-white">Trash</h1>
+                <h1 className="text-xl font-semibold text-surface-900 dark:text-white">Trash</h1>
                 <span className="badge-warning">{files.length} items</span>
             </div>
 
@@ -63,7 +63,7 @@ export default function TrashPage() {
                         <div key={file.id} className="file-card flex items-center gap-4 rounded-lg px-4 py-3">
                             {getIcon(file.mimeType)}
                             <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-medium text-white">{file.name}</p>
+                                <p className="truncate text-sm font-medium text-surface-900 dark:text-white">{file.name}</p>
                                 <p className="text-xs text-surface-500">
                                     Deleted {new Date(file.trashedAt).toLocaleDateString()}
                                 </p>

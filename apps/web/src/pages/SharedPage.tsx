@@ -5,7 +5,7 @@ export default function SharedPage() {
         <div className="animate-fade-in">
             <div className="mb-6 flex items-center gap-3">
                 <Share2 className="h-6 w-6 text-brand-400" />
-                <h1 className="text-xl font-semibold text-white">Shared with Me</h1>
+                <h1 className="text-xl font-semibold text-surface-900 dark:text-white">Shared with Me</h1>
             </div>
 
             <div className="flex flex-col items-center py-20 text-center">
