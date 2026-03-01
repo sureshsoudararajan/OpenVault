@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFileManagerStore } from '../stores/fileManagerStore';
-import { fileApi, folderApi } from '../services/api';
+import { fileApi, folderApi, searchApi } from '../services/api';
 import FilePreview from '../components/FilePreview';
 import ShareDialog from '../components/ShareDialog';
 import DetailsDialog from '../components/DetailsDialog';
@@ -58,7 +58,7 @@ const formatDate = (date: string) =>
 export default function DashboardPage() {
     const { folderId } = useParams();
     const navigate = useNavigate();
-    const { viewMode, setViewMode, setCurrentFolderId } = useFileManagerStore();
+    const { viewMode, setViewMode, setCurrentFolderId, searchQuery } = useFileManagerStore();
 
     const [files, setFiles] = useState<FileItem[]>([]);
     const [folders, setFolders] = useState<FolderItem[]>([]);
@@ -82,31 +82,41 @@ export default function DashboardPage() {
     const loadContent = useCallback(async () => {
         setLoading(true);
         try {
-            const [filesRes, foldersRes] = await Promise.all([
-                fileApi.list(folderId),
-                folderApi.list(folderId),
-            ]) as any[];
+            if (searchQuery) {
+                const searchRes: any = await searchApi.search(searchQuery);
+                setFiles(searchRes.data || []);
+                setFolders([]);
+                setBreadcrumbs([{ id: null, name: `Search results for "${searchQuery}"` }]);
+            } else {
+                const [filesRes, foldersRes] = await Promise.all([
+                    fileApi.list(folderId),
+                    folderApi.list(folderId),
+                ]) as any[];
 
-            setFiles(filesRes.data || []);
-            setFolders(foldersRes.data || []);
+                setFiles(filesRes.data || []);
+                setFolders(foldersRes.data || []);
 
-            const crumbs: { id: string | null; name: string }[] = [{ id: null, name: 'My Files' }];
-            if (folderId) {
-                const folderRes: any = await folderApi.get(folderId);
-                crumbs.push({ id: folderId, name: folderRes.data?.name || 'Folder' });
+                const crumbs: { id: string | null; name: string }[] = [{ id: null, name: 'My Files' }];
+                if (folderId) {
+                    const folderRes: any = await folderApi.get(folderId);
+                    crumbs.push({ id: folderId, name: folderRes.data?.name || 'Folder' });
+                }
+                setBreadcrumbs(crumbs);
             }
-            setBreadcrumbs(crumbs);
         } catch (err) {
             console.error('Failed to load content:', err);
         } finally {
             setLoading(false);
         }
-    }, [folderId]);
+    }, [folderId, searchQuery]);
 
     useEffect(() => {
         setCurrentFolderId(folderId || null);
-        loadContent();
-    }, [folderId, loadContent, setCurrentFolderId]);
+        const timeout = setTimeout(() => {
+            loadContent();
+        }, searchQuery ? 300 : 0);
+        return () => clearTimeout(timeout);
+    }, [folderId, loadContent, setCurrentFolderId, searchQuery]);
 
     // Right-click handler for files
     const handleFileContextMenu = (e: React.MouseEvent, file: FileItem, index: number) => {
@@ -216,10 +226,25 @@ export default function DashboardPage() {
 
     // Ensure context menu doesn't go off screen
     const getMenuPosition = (x: number, y: number) => {
-        const menuW = 200, menuH = 250;
-        const maxX = window.innerWidth - menuW;
-        const maxY = window.innerHeight - menuH;
-        return { left: Math.min(x, maxX), top: Math.min(y, maxY) };
+        // Safe estimates for the context menu dimensions
+        const menuW = 220;
+        const menuH = 320;
+
+        const position: React.CSSProperties = {};
+
+        if (x + menuW > window.innerWidth) {
+            position.right = window.innerWidth - x;
+        } else {
+            position.left = x;
+        }
+
+        if (y + menuH > window.innerHeight) {
+            position.bottom = window.innerHeight - y;
+        } else {
+            position.top = y;
+        }
+
+        return position;
     };
 
     return (

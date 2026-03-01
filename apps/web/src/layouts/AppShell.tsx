@@ -121,7 +121,7 @@ export default function AppShell() {
             {/* Main Content */}
             <div className="flex flex-1 flex-col overflow-hidden">
                 {/* Top Bar */}
-                <header className={`flex items-center gap-4 border-b px-6 py-3 backdrop-blur-sm ${theme === 'dark' ? 'border-surface-800 bg-surface-900/30' : 'border-surface-200 bg-white/70'}`}>
+                <header className={`relative z-40 flex items-center gap-4 border-b px-6 py-3 backdrop-blur-sm ${theme === 'dark' ? 'border-surface-800 bg-surface-900/30' : 'border-surface-200 bg-white/70'}`}>
                     <button onClick={() => setSidebarOpen(!sidebarOpen)} className="btn-ghost p-1.5">
                         {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                     </button>
@@ -133,8 +133,13 @@ export default function AppShell() {
                             type="text"
                             placeholder="Search files and folders..."
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="input-field pl-10 py-2 text-sm"
+                            onChange={(e) => {
+                                setSearchQuery(e.target.value);
+                                if (e.target.value && !location.pathname.startsWith('/folder') && location.pathname !== '/') {
+                                    navigate('/');
+                                }
+                            }}
+                            className="input-field pl-10 py-2 text-sm w-full"
                         />
                     </div>
 
