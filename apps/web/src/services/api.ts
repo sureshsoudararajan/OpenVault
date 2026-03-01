@@ -147,6 +147,9 @@ export const fileApi = {
         request(`/files/${id}/move`, { method: 'PATCH', body: { folderId } }),
 
     listTrash: () => request('/files/trash/list'),
+
+    updateContent: (id: string, content: string) =>
+        request(`/files/${id}/content`, { method: 'PUT', body: { content } }),
 };
 
 // ============================================

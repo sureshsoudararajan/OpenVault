@@ -284,4 +284,69 @@ export async function fileRoutes(app: FastifyInstance) {
             data: files.map((f) => ({ ...f, size: Number(f.size) })),
         };
     });
+
+    // PUT /api/files/:id/content — Update text file content (for notepad editor)
+    app.put('/:id/content', { preHandler: [authGuard] }, async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const { content } = request.body as { content: string };
+
+        if (typeof content !== 'string') {
+            return reply.status(400).send({ success: false, error: { code: 'INVALID', message: 'Content must be a string' } });
+        }
+
+        const file = await prisma.file.findFirst({
+            where: { id, userId: request.userId },
+            select: { id: true, storageKey: true, name: true, mimeType: true, currentVersion: true },
+        });
+
+        if (!file) {
+            return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'File not found' } });
+        }
+
+        const fileBuffer = Buffer.from(content, 'utf-8');
+        const hash = sha256(fileBuffer);
+        const newVersion = file.currentVersion + 1;
+
+        // Overwrite in MinIO
+        await uploadObject(config.minio.bucket, file.storageKey, fileBuffer, {
+            'Content-Type': file.mimeType,
+        });
+
+        // Update file record
+        await prisma.file.update({
+            where: { id },
+            data: {
+                size: BigInt(fileBuffer.length),
+                sha256Hash: hash,
+                currentVersion: newVersion,
+                updatedAt: new Date(),
+            },
+        });
+
+        // Create new version
+        await prisma.fileVersion.create({
+            data: {
+                fileId: id,
+                versionNumber: newVersion,
+                size: BigInt(fileBuffer.length),
+                sha256Hash: hash,
+                storageKey: file.storageKey,
+                createdBy: request.userId,
+            },
+        });
+
+        // Log activity
+        await prisma.activityLog.create({
+            data: {
+                userId: request.userId,
+                action: 'edit',
+                resourceId: id,
+                resourceType: 'file',
+                metadata: { fileName: file.name, newSize: fileBuffer.length },
+                ipAddress: request.ip,
+            },
+        });
+
+        return { success: true, data: { size: fileBuffer.length, version: newVersion } };
+    });
 }
