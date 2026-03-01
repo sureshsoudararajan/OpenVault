@@ -48,7 +48,6 @@ export default function FilePreview({
         loadPreview();
     }, [fileId]);
 
-    // Keyboard navigation
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onClose();
@@ -82,16 +81,14 @@ export default function FilePreview({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
-            {/* Overlay click to close */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/80 backdrop-blur-sm animate-fade-in">
             <div className="absolute inset-0" onClick={onClose} />
 
-            {/* Preview Container */}
             <div className={`relative z-10 flex flex-col ${fullscreen ? 'h-full w-full' : 'h-[90vh] w-[90vw] max-w-5xl rounded-xl'
-                } overflow-hidden bg-surface-900 border border-surface-700 shadow-2xl transition-all duration-300`}>
+                } overflow-hidden bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 shadow-2xl transition-all duration-300`}>
 
                 {/* Header */}
-                <div className="flex items-center justify-between border-b border-surface-700 bg-surface-900/90 px-4 py-3 backdrop-blur-sm">
+                <div className="flex items-center justify-between border-b border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/90 px-4 py-3 backdrop-blur-sm">
                     <div className="flex items-center gap-3 min-w-0">
                         <div className="flex-shrink-0">
                             {isImage && <Image className="h-5 w-5 text-pink-400" />}
@@ -101,56 +98,53 @@ export default function FilePreview({
                             {!isImage && !isVideo && !isAudio && !isPdf && <File className="h-5 w-5 text-brand-400" />}
                         </div>
                         <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-white">{fileName}</p>
+                            <p className="truncate text-sm font-medium text-surface-900 dark:text-white">{fileName}</p>
                             <p className="text-xs text-surface-500">{formatSize(fileSize)} · {mimeType}</p>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-1">
-                        <button onClick={handleDownload} className="rounded-lg p-2 text-surface-400 transition-colors hover:bg-surface-800 hover:text-white" title="Download">
+                        <button onClick={handleDownload} className="rounded-lg p-2 text-surface-400 transition-colors hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-white" title="Download">
                             <Download className="h-4 w-4" />
                         </button>
-                        <button onClick={() => setFullscreen(!fullscreen)} className="rounded-lg p-2 text-surface-400 transition-colors hover:bg-surface-800 hover:text-white" title="Toggle fullscreen">
+                        <button onClick={() => setFullscreen(!fullscreen)} className="rounded-lg p-2 text-surface-400 transition-colors hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-white" title="Toggle fullscreen">
                             {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                         </button>
-                        <button onClick={onClose} className="rounded-lg p-2 text-surface-400 transition-colors hover:bg-surface-800 hover:text-red-400" title="Close">
+                        <button onClick={onClose} className="rounded-lg p-2 text-surface-400 transition-colors hover:bg-red-50 dark:hover:bg-surface-800 hover:text-red-500 dark:hover:text-red-400" title="Close">
                             <X className="h-4 w-4" />
                         </button>
                     </div>
                 </div>
 
                 {/* Content Area */}
-                <div className="flex flex-1 items-center justify-center overflow-auto bg-surface-950 p-4">
+                <div className="flex flex-1 items-center justify-center overflow-auto bg-surface-100 dark:bg-surface-950 p-4">
                     {loading ? (
                         <div className="flex flex-col items-center gap-3">
                             <Loader2 className="h-8 w-8 animate-spin text-brand-400" />
-                            <p className="text-sm text-surface-400">Loading preview...</p>
+                            <p className="text-sm text-surface-500 dark:text-surface-400">Loading preview...</p>
                         </div>
                     ) : error ? (
                         <div className="flex flex-col items-center gap-3 text-center">
                             {getFileIcon()}
-                            <p className="text-sm text-red-400">{error}</p>
-                            <button onClick={handleDownload} className="btn-primary text-sm mt-2">
+                            <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
+                            <button onClick={handleDownload} className="btn-primary text-sm mt-2 !text-white">
                                 <Download className="mr-2 inline h-4 w-4" /> Download Instead
                             </button>
                         </div>
                     ) : !isPreviewable ? (
-                        // Non-previewable files
                         <div className="flex flex-col items-center gap-4 text-center">
                             {getFileIcon()}
                             <div>
-                                <p className="text-lg font-medium text-white">{fileName}</p>
-                                <p className="mt-1 text-sm text-surface-400">{formatSize(fileSize)}</p>
-                                <p className="mt-0.5 text-xs text-surface-500">Preview not available for this file type</p>
+                                <p className="text-lg font-medium text-surface-900 dark:text-white">{fileName}</p>
+                                <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">{formatSize(fileSize)}</p>
+                                <p className="mt-0.5 text-xs text-surface-400 dark:text-surface-500">Preview not available for this file type</p>
                             </div>
-                            <button onClick={handleDownload} className="btn-primary flex items-center gap-2 text-sm mt-2">
+                            <button onClick={handleDownload} className="btn-primary flex items-center gap-2 text-sm mt-2 !text-white">
                                 <Download className="h-4 w-4" /> Download File
                             </button>
                         </div>
                     ) : (
-                        // Previewable content
                         <>
-                            {/* Image Preview */}
                             {isImage && downloadUrl && (
                                 <img
                                     src={downloadUrl}
@@ -160,7 +154,6 @@ export default function FilePreview({
                                 />
                             )}
 
-                            {/* Video Preview */}
                             {isVideo && downloadUrl && (
                                 <video
                                     src={downloadUrl}
@@ -174,15 +167,14 @@ export default function FilePreview({
                                 </video>
                             )}
 
-                            {/* Audio Preview */}
                             {isAudio && downloadUrl && (
                                 <div className="flex flex-col items-center gap-6 w-full max-w-md">
                                     <div className="flex h-32 w-32 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/20">
                                         <Music className="h-16 w-16 text-cyan-400" />
                                     </div>
                                     <div className="text-center">
-                                        <p className="text-lg font-medium text-white">{fileName}</p>
-                                        <p className="text-sm text-surface-400">{formatSize(fileSize)}</p>
+                                        <p className="text-lg font-medium text-surface-900 dark:text-white">{fileName}</p>
+                                        <p className="text-sm text-surface-500 dark:text-surface-400">{formatSize(fileSize)}</p>
                                     </div>
                                     <audio
                                         src={downloadUrl}
@@ -195,7 +187,6 @@ export default function FilePreview({
                                 </div>
                             )}
 
-                            {/* PDF Preview */}
                             {isPdf && downloadUrl && (
                                 <iframe
                                     src={downloadUrl}
@@ -204,7 +195,6 @@ export default function FilePreview({
                                 />
                             )}
 
-                            {/* Text Preview */}
                             {isText && downloadUrl && (
                                 <TextPreview url={downloadUrl} />
                             )}
@@ -216,7 +206,7 @@ export default function FilePreview({
                 {onPrev && (
                     <button
                         onClick={onPrev}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-surface-800/80 p-2 text-white backdrop-blur-sm transition-all hover:bg-surface-700 hover:scale-110"
+                        className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 dark:bg-surface-800/80 p-2 text-surface-700 dark:text-white backdrop-blur-sm transition-all hover:bg-white dark:hover:bg-surface-700 hover:scale-110 shadow-lg"
                     >
                         <ChevronLeft className="h-5 w-5" />
                     </button>
@@ -224,7 +214,7 @@ export default function FilePreview({
                 {onNext && (
                     <button
                         onClick={onNext}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-surface-800/80 p-2 text-white backdrop-blur-sm transition-all hover:bg-surface-700 hover:scale-110"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 dark:bg-surface-800/80 p-2 text-surface-700 dark:text-white backdrop-blur-sm transition-all hover:bg-white dark:hover:bg-surface-700 hover:scale-110 shadow-lg"
                     >
                         <ChevronRight className="h-5 w-5" />
                     </button>
@@ -234,9 +224,6 @@ export default function FilePreview({
     );
 }
 
-/**
- * Sub-component to fetch and display text file content.
- */
 function TextPreview({ url }: { url: string }) {
     const [content, setContent] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -254,7 +241,7 @@ function TextPreview({ url }: { url: string }) {
     }
 
     return (
-        <pre className="h-full w-full overflow-auto rounded-lg bg-surface-900 p-6 text-sm text-surface-200 font-mono leading-relaxed whitespace-pre-wrap break-words">
+        <pre className="h-full w-full overflow-auto rounded-lg bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-6 text-sm text-surface-800 dark:text-surface-200 font-mono leading-relaxed whitespace-pre-wrap break-words">
             {content}
         </pre>
     );
