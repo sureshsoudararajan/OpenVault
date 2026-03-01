@@ -7,23 +7,47 @@
    ============================================ */
 
 @layer base {
-  :root {
+
+  /* Dark Mode (default) */
+  :root,
+  .dark {
     --gradient-primary: linear-gradient(135deg, #10b981 0%, #06b6d4 50%, #3b82f6 100%);
     --gradient-accent: linear-gradient(135deg, #06b6d4 0%, #10b981 50%, #34d399 100%);
     --gradient-surface: linear-gradient(180deg, #121218 0%, #1c1c24 100%);
-    --gradient-warm: linear-gradient(135deg, #f59e0b 0%, #ec4899 50%, #a855f7 100%);
     --glass-bg: rgba(28, 28, 36, 0.7);
     --glass-border: rgba(113, 113, 122, 0.12);
+    --bg-body: #09090b;
+    --text-body: #fafafa;
+    --scrollbar-thumb: rgba(82, 82, 91, 0.4);
+    --scrollbar-hover: rgba(82, 82, 91, 0.6);
+    --selection-bg: rgba(16, 185, 129, 0.3);
+    --selection-text: #ecfdf5;
+  }
+
+  /* Light Mode */
+  .light {
+    --gradient-primary: linear-gradient(135deg, #059669 0%, #0891b2 50%, #2563eb 100%);
+    --gradient-accent: linear-gradient(135deg, #0891b2 0%, #059669 50%, #10b981 100%);
+    --gradient-surface: linear-gradient(180deg, #f4f4f5 0%, #ffffff 100%);
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(0, 0, 0, 0.08);
+    --bg-body: #fafafa;
+    --text-body: #18181b;
+    --scrollbar-thumb: rgba(161, 161, 170, 0.4);
+    --scrollbar-hover: rgba(161, 161, 170, 0.6);
+    --selection-bg: rgba(5, 150, 105, 0.2);
+    --selection-text: #022c22;
   }
 
   body {
-    background: #09090b;
-    color: #fafafa;
+    background: var(--bg-body);
+    color: var(--text-body);
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(82, 82, 91, 0.4) transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 
   *::-webkit-scrollbar {
@@ -36,18 +60,17 @@
   }
 
   *::-webkit-scrollbar-thumb {
-    background: rgba(82, 82, 91, 0.4);
+    background: var(--scrollbar-thumb);
     border-radius: 3px;
   }
 
   *::-webkit-scrollbar-thumb:hover {
-    background: rgba(82, 82, 91, 0.6);
+    background: var(--scrollbar-hover);
   }
 
-  /* Selection color */
   ::selection {
-    background: rgba(16, 185, 129, 0.3);
-    color: #ecfdf5;
+    background: var(--selection-bg);
+    color: var(--selection-text);
   }
 }
 
@@ -66,7 +89,7 @@
     background-image: var(--gradient-primary);
   }
 
-  /* Primary button with gradient */
+  /* Primary button */
   .btn-primary {
     @apply relative overflow-hidden rounded-lg px-6 py-2.5 font-medium text-white transition-all duration-300;
     background-image: var(--gradient-primary);
@@ -84,34 +107,77 @@
 
   /* Secondary button */
   .btn-secondary {
-    @apply rounded-lg border border-surface-600 bg-surface-800/50 px-6 py-2.5 font-medium text-surface-200 transition-all duration-200 hover:border-brand-500/40 hover:bg-surface-700/50 hover:text-white;
+    @apply rounded-lg border px-6 py-2.5 font-medium transition-all duration-200;
+  }
+
+  .dark .btn-secondary {
+    @apply border-surface-600 bg-surface-800/50 text-surface-200 hover:border-brand-500/40 hover:bg-surface-700/50 hover:text-white;
+  }
+
+  .light .btn-secondary {
+    @apply border-surface-200 bg-white text-surface-600 hover:border-brand-500/40 hover:bg-surface-50 hover:text-surface-900;
   }
 
   /* Ghost button */
   .btn-ghost {
-    @apply rounded-lg px-4 py-2 font-medium text-surface-300 transition-all duration-200 hover:bg-surface-800 hover:text-white;
+    @apply rounded-lg px-4 py-2 font-medium transition-all duration-200;
+  }
+
+  .dark .btn-ghost {
+    @apply text-surface-300 hover:bg-surface-800 hover:text-white;
+  }
+
+  .light .btn-ghost {
+    @apply text-surface-500 hover:bg-surface-100 hover:text-surface-900;
   }
 
   /* Input field */
   .input-field {
-    @apply w-full rounded-lg border border-surface-700 bg-surface-800/50 px-4 py-2.5 text-white placeholder-surface-500 transition-all duration-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20;
+    @apply w-full rounded-lg border px-4 py-2.5 transition-all duration-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20;
   }
 
-  /* File item in grid */
+  .dark .input-field {
+    @apply border-surface-700 bg-surface-800/50 text-white placeholder-surface-500;
+  }
+
+  .light .input-field {
+    @apply border-surface-200 bg-white text-surface-900 placeholder-surface-400;
+  }
+
+  /* File card */
   .file-card {
-    @apply glass-card cursor-pointer p-4 transition-all duration-200 hover:border-brand-500/30 hover:shadow-lg;
-    &:hover {
-      box-shadow: 0 4px 20px rgba(16, 185, 129, 0.08);
-    }
+    @apply glass-card cursor-pointer p-4 transition-all duration-200;
+  }
+
+  .dark .file-card:hover {
+    border-color: rgba(16, 185, 129, 0.3);
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.08);
+  }
+
+  .light .file-card:hover {
+    border-color: rgba(5, 150, 105, 0.25);
+    box-shadow: 0 4px 20px rgba(5, 150, 105, 0.08);
   }
 
   /* Sidebar nav item */
   .nav-item {
-    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-surface-400 transition-all duration-200 hover:bg-surface-800 hover:text-white;
+    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200;
   }
 
-  .nav-item.active {
-    @apply bg-brand-500/10 text-brand-400 border-l-2 border-brand-500;
+  .dark .nav-item {
+    @apply text-surface-400 hover:bg-surface-800 hover:text-white;
+  }
+
+  .light .nav-item {
+    @apply text-surface-500 hover:bg-surface-100 hover:text-surface-900;
+  }
+
+  .dark .nav-item.active {
+    @apply bg-brand-500/10 text-brand-400;
+  }
+
+  .light .nav-item.active {
+    @apply bg-brand-50 text-brand-700;
   }
 
   /* Dropdown menu */
@@ -120,12 +186,28 @@
   }
 
   .dropdown-item {
-    @apply flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-surface-300 transition-colors duration-150 hover:bg-surface-700/50 hover:text-white;
+    @apply flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors duration-150;
+  }
+
+  .dark .dropdown-item {
+    @apply text-surface-300 hover:bg-surface-700/50 hover:text-white;
+  }
+
+  .light .dropdown-item {
+    @apply text-surface-600 hover:bg-surface-100 hover:text-surface-900;
   }
 
   /* Progress bar */
   .progress-bar {
-    @apply h-1.5 overflow-hidden rounded-full bg-surface-800;
+    @apply h-1.5 overflow-hidden rounded-full;
+  }
+
+  .dark .progress-bar {
+    @apply bg-surface-800;
+  }
+
+  .light .progress-bar {
+    @apply bg-surface-200;
   }
 
   .progress-bar-fill {
@@ -150,16 +232,16 @@
     @apply badge bg-amber-500/10 text-amber-400;
   }
 
-  /* Custom scrollbar class */
+  /* Custom scrollbar */
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background: rgba(16, 185, 129, 0.2);
   }
+
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(16, 185, 129, 0.4);
   }
 }
 
-/* Smooth transitions for theme */
 @layer utilities {
   .text-glow {
     text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);

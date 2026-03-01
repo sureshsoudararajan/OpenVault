@@ -1,16 +1,18 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useFileManagerStore } from '../stores/fileManagerStore';
+import { useThemeStore } from '../stores/themeStore';
 import { fileApi } from '../services/api';
 import {
     FolderOpen, Trash2, Share2, Settings, Search, Upload, LogOut,
-    Shield, HardDrive, Menu, X, ChevronDown
+    Shield, HardDrive, Menu, X, ChevronDown, Sun, Moon
 } from 'lucide-react';
 import { useState } from 'react';
 
 export default function AppShell() {
     const { user, logout } = useAuthStore();
     const { searchQuery, setSearchQuery } = useFileManagerStore();
+    const { theme, toggleTheme } = useThemeStore();
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const navigate = useNavigate();
@@ -52,14 +54,14 @@ export default function AppShell() {
     };
 
     return (
-        <div className="flex h-screen bg-surface-950">
+        <div className={`flex h-screen ${theme === 'dark' ? 'bg-surface-950' : 'bg-surface-50'}`}>
             {/* Sidebar */}
             <aside
                 className={`${sidebarOpen ? 'w-64' : 'w-0 overflow-hidden'
-                    } flex flex-col border-r border-surface-800 bg-surface-900/50 transition-all duration-300`}
+                    } flex flex-col border-r transition-all duration-300 ${theme === 'dark' ? 'border-surface-800 bg-surface-900/50' : 'border-surface-200 bg-white'}`}
             >
                 {/* Logo */}
-                <div className="flex items-center gap-3 border-b border-surface-800 px-5 py-4">
+                <div className={`flex items-center gap-3 border-b px-5 py-4 ${theme === 'dark' ? 'border-surface-800' : 'border-surface-200'}`}>
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-purple-600">
                         <Shield className="h-5 w-5 text-white" />
                     </div>
@@ -96,7 +98,7 @@ export default function AppShell() {
                 </nav>
 
                 {/* Storage Usage */}
-                <div className="border-t border-surface-800 p-4">
+                <div className={`border-t p-4 ${theme === 'dark' ? 'border-surface-800' : 'border-surface-200'}`}>
                     <div className="flex items-center gap-2 text-xs text-surface-400">
                         <HardDrive className="h-3.5 w-3.5" />
                         <span>Storage</span>
@@ -116,7 +118,7 @@ export default function AppShell() {
             {/* Main Content */}
             <div className="flex flex-1 flex-col overflow-hidden">
                 {/* Top Bar */}
-                <header className="flex items-center gap-4 border-b border-surface-800 bg-surface-900/30 px-6 py-3 backdrop-blur-sm">
+                <header className={`flex items-center gap-4 border-b px-6 py-3 backdrop-blur-sm ${theme === 'dark' ? 'border-surface-800 bg-surface-900/30' : 'border-surface-200 bg-white/70'}`}>
                     <button onClick={() => setSidebarOpen(!sidebarOpen)} className="btn-ghost p-1.5">
                         {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                     </button>
@@ -133,23 +135,32 @@ export default function AppShell() {
                         />
                     </div>
 
+                    {/* Theme Toggle */}
+                    <button
+                        onClick={toggleTheme}
+                        className={`rounded-lg p-2 transition-all duration-300 ${theme === 'dark' ? 'text-surface-400 hover:text-yellow-400 hover:bg-surface-800' : 'text-surface-500 hover:text-amber-500 hover:bg-surface-100'}`}
+                        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                    >
+                        {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                    </button>
+
                     {/* User Menu */}
                     <div className="relative">
                         <button
                             onClick={() => setUserMenuOpen(!userMenuOpen)}
                             className="flex items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-surface-800"
                         >
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-purple-500 text-sm font-semibold text-white">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-sm font-semibold text-white">
                                 {user?.name?.charAt(0).toUpperCase() || 'U'}
                             </div>
-                            <span className="hidden text-sm font-medium text-surface-300 md:block">{user?.name}</span>
+                            <span className={`hidden text-sm font-medium md:block ${theme === 'dark' ? 'text-surface-300' : 'text-surface-600'}`}>{user?.name}</span>
                             <ChevronDown className="h-3.5 w-3.5 text-surface-500" />
                         </button>
 
                         {userMenuOpen && (
                             <div className="dropdown-menu right-0 top-full mt-2">
-                                <div className="border-b border-surface-700 px-3 py-2">
-                                    <p className="text-sm font-medium text-white">{user?.name}</p>
+                                <div className={`border-b px-3 py-2 ${theme === 'dark' ? 'border-surface-700' : 'border-surface-200'}`}>
+                                    <p className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-surface-900'}`}>{user?.name}</p>
                                     <p className="text-xs text-surface-500">{user?.email}</p>
                                 </div>
                                 <div className="py-1">
