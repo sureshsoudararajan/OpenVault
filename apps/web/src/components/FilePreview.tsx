@@ -6,8 +6,6 @@ import {
     Maximize2, Minimize2, Loader2, Save, Pencil, Eye as EyeIcon
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import mammoth from 'mammoth';
-import { marked } from 'marked';
 
 interface FilePreviewProps {
     fileId: string;
@@ -303,6 +301,7 @@ function NotepadEditor({ url, fileId }: { url: string; fileId: string }) {
 function MarkdownPreview({ url, fileId }: { url: string; fileId: string }) {
     const [content, setContent] = useState<string>('');
     const [originalContent, setOriginalContent] = useState<string>('');
+    const [renderedHtml, setRenderedHtml] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [mode, setMode] = useState<'preview' | 'edit'>('preview');
     const [saving, setSaving] = useState(false);
@@ -315,6 +314,23 @@ function MarkdownPreview({ url, fileId }: { url: string; fileId: string }) {
             .catch(() => setContent('Failed to load markdown'))
             .finally(() => setLoading(false));
     }, [url]);
+
+    // Render markdown asynchronously (marked v12+ returns Promise)
+    useEffect(() => {
+        if (!content) { setRenderedHtml(''); return; }
+        const render = async () => {
+            try {
+                const { marked } = await import('marked');
+                const result = await Promise.resolve(marked.parse(content, { breaks: true, gfm: true }));
+                setRenderedHtml(typeof result === 'string' ? result : String(result));
+            } catch (err) {
+                console.error('Markdown render error:', err);
+                // Fallback: simple conversion
+                setRenderedHtml(content.replace(/\n/g, '<br/>'));
+            }
+        };
+        render();
+    }, [content]);
 
     const handleSave = async () => {
         setSaving(true);
@@ -333,8 +349,6 @@ function MarkdownPreview({ url, fileId }: { url: string; fileId: string }) {
     const hasChanges = content !== originalContent;
 
     if (loading) return <Loader2 className="h-6 w-6 animate-spin text-brand-400" />;
-
-    const renderedHtml = marked.parse(content, { breaks: true, gfm: true }) as string;
 
     return (
         <div className="flex h-full w-full flex-col rounded-lg border border-surface-200 dark:border-surface-700 overflow-hidden">
@@ -372,18 +386,22 @@ function MarkdownPreview({ url, fileId }: { url: string; fileId: string }) {
             {/* Content */}
             {mode === 'preview' ? (
                 <div className="flex-1 overflow-auto bg-white dark:bg-surface-900 p-8">
-                    <div
-                        className="prose prose-sm dark:prose-invert max-w-none
-                            prose-headings:text-surface-900 dark:prose-headings:text-white
-                            prose-p:text-surface-700 dark:prose-p:text-surface-300
-                            prose-strong:text-surface-900 dark:prose-strong:text-white
-                            prose-a:text-brand-600 dark:prose-a:text-brand-400
-                            prose-code:text-brand-600 dark:prose-code:text-brand-400
-                            prose-code:bg-surface-100 dark:prose-code:bg-surface-800
-                            prose-pre:bg-surface-50 dark:prose-pre:bg-surface-800
-                            prose-blockquote:border-brand-500"
-                        dangerouslySetInnerHTML={{ __html: renderedHtml }}
-                    />
+                    {renderedHtml ? (
+                        <div
+                            className="prose prose-sm dark:prose-invert max-w-none
+                                prose-headings:text-surface-900 dark:prose-headings:text-white
+                                prose-p:text-surface-700 dark:prose-p:text-surface-300
+                                prose-strong:text-surface-900 dark:prose-strong:text-white
+                                prose-a:text-brand-600 dark:prose-a:text-brand-400
+                                prose-code:text-brand-600 dark:prose-code:text-brand-400
+                                prose-code:bg-surface-100 dark:prose-code:bg-surface-800
+                                prose-pre:bg-surface-50 dark:prose-pre:bg-surface-800
+                                prose-blockquote:border-brand-500"
+                            dangerouslySetInnerHTML={{ __html: renderedHtml }}
+                        />
+                    ) : (
+                        <p className="text-sm text-surface-500">Rendering markdown...</p>
+                    )}
                 </div>
             ) : (
                 <textarea
@@ -508,11 +526,25 @@ function WordPreview({ url }: { url: string }) {
             setLoading(true);
             try {
                 const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const buf = await res.arrayBuffer();
-                const result = await mammoth.convertToHtml({ arrayBuffer: buf });
-                setHtml(result.value);
-            } catch (err) {
-                setError('Failed to parse document');
+
+                // Dynamic import to ensure browser build is used
+                const mammothModule = await import('mammoth');
+                const mammothLib = mammothModule.default || mammothModule;
+
+                const result = await mammothLib.convertToHtml({ arrayBuffer: buf });
+                if (result.value) {
+                    setHtml(result.value);
+                } else {
+                    setError('Document appears to be empty');
+                }
+                if (result.messages?.length) {
+                    console.warn('Mammoth warnings:', result.messages);
+                }
+            } catch (err: any) {
+                console.error('Word preview error:', err);
+                setError(`Failed to parse document: ${err.message || 'Unknown error'}`);
             } finally {
                 setLoading(false);
             }
@@ -520,8 +552,19 @@ function WordPreview({ url }: { url: string }) {
         load();
     }, [url]);
 
-    if (loading) return <Loader2 className="h-6 w-6 animate-spin text-brand-400" />;
-    if (error) return <p className="text-sm text-red-500 dark:text-red-400">{error}</p>;
+    if (loading) return (
+        <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-6 w-6 animate-spin text-brand-400" />
+            <p className="text-xs text-surface-500">Parsing document...</p>
+        </div>
+    );
+    if (error) return (
+        <div className="flex flex-col items-center gap-3 text-center">
+            <FileText className="h-12 w-12 text-blue-400" />
+            <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
+            <p className="text-xs text-surface-500">Try downloading the file to view it in your desktop application</p>
+        </div>
+    );
 
     return (
         <div className="h-full w-full overflow-auto rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-8">
