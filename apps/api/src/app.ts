@@ -66,6 +66,49 @@ export async function buildApp() {
         version: '0.1.0',
     }));
 
+    // ---- Global Error Handler ----
+    app.setErrorHandler((error, request, reply) => {
+        let statusCode = (error as any).statusCode ?? 500;
+
+        app.log.error({
+            msg: 'ErrorHandler caught an error',
+            err: error as any,
+            request: {
+                method: request.method,
+                url: request.url,
+                ip: request.ip,
+            },
+        });
+
+        let message = (error as any).message || 'An unexpected error occurred';
+        let code = (error as any).code ?? 'INTERNAL_ERROR';
+
+        // More robust detection for ZodError
+        const isZodError =
+            error instanceof ZodError ||
+            error.name === 'ZodError' ||
+            (error as any).issues ||
+            (error as any).errors;
+
+        if (isZodError) {
+            const issues = (error as any).issues || (error as any).errors;
+            message = issues?.[0]?.message || 'Validation failed';
+            code = 'VALIDATION_ERROR';
+            statusCode = 400;
+        }
+
+        reply.status(statusCode).send({
+            success: false,
+            error: {
+                code,
+                message:
+                    config.nodeEnv === 'production' && statusCode >= 500
+                        ? 'Internal server error'
+                        : message,
+            },
+        });
+    });
+
     // ---- API Routes ----
     await app.register(
         async (api) => {
@@ -81,42 +124,6 @@ export async function buildApp() {
         },
         { prefix: '/api' }
     );
-
-    // ---- Global Error Handler ----
-    app.setErrorHandler((error, request, reply) => {
-        let statusCode = (error as any).statusCode ?? 500;
-
-        app.log.error({
-            err: error as any,
-            request: {
-                method: request.method,
-                url: request.url,
-                ip: request.ip,
-            },
-        });
-
-        let message = (error as any).message || 'An unexpected error occurred';
-        let code = (error as any).code ?? 'INTERNAL_ERROR';
-
-        // Robust check for ZodError
-        if (error instanceof ZodError || (error as any).name === 'ZodError') {
-            const issues = (error as any).errors || (error as any).issues;
-            message = issues?.[0]?.message || 'Validation failed';
-            code = 'VALIDATION_ERROR';
-            if (statusCode === 500) statusCode = 400;
-        }
-
-        reply.status(statusCode).send({
-            success: false,
-            error: {
-                code,
-                message:
-                    config.nodeEnv === 'production' && statusCode >= 500
-                        ? 'Internal server error'
-                        : message,
-            },
-        });
-    });
 
     return app;
 }
