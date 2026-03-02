@@ -84,7 +84,7 @@ export async function buildApp() {
 
     // ---- Global Error Handler ----
     app.setErrorHandler((error, request, reply) => {
-        const statusCode = (error as any).statusCode ?? 500;
+        let statusCode = (error as any).statusCode ?? 500;
 
         app.log.error({
             err: error as any,
@@ -98,9 +98,12 @@ export async function buildApp() {
         let message = (error as any).message || 'An unexpected error occurred';
         let code = (error as any).code ?? 'INTERNAL_ERROR';
 
-        if (error instanceof ZodError) {
-            message = error.errors[0]?.message || 'Validation failed';
+        // Robust check for ZodError
+        if (error instanceof ZodError || (error as any).name === 'ZodError') {
+            const issues = (error as any).errors || (error as any).issues;
+            message = issues?.[0]?.message || 'Validation failed';
             code = 'VALIDATION_ERROR';
+            if (statusCode === 500) statusCode = 400;
         }
 
         reply.status(statusCode).send({
