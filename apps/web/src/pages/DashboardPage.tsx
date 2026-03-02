@@ -476,12 +476,12 @@ export default function DashboardPage() {
                 <>
                     <div className="fixed inset-0 z-40" onClick={closeContextMenu} onContextMenu={(e) => { e.preventDefault(); closeContextMenu(); }} />
                     <div
-                        className="fixed z-50 w-52 rounded-xl border border-surface-700 dark:border-surface-700 bg-white dark:bg-surface-900/95 py-1.5 shadow-xl backdrop-blur-sm animate-scale-in"
+                        className="fixed z-50 w-52 rounded-xl border border-surface-200 dark:border-surface-700 bg-white/80 dark:bg-surface-900/95 py-1.5 shadow-xl backdrop-blur-md animate-scale-in"
                         style={getMenuPosition(contextMenu.x, contextMenu.y)}
                     >
                         {/* Header */}
-                        <div className="border-b border-surface-700 px-3 py-2 mb-1">
-                            <p className="truncate text-xs font-medium text-surface-300">{contextMenu.name}</p>
+                        <div className="border-b border-surface-200 dark:border-surface-700 px-3 py-2 mb-1">
+                            <p className="truncate text-xs font-medium text-surface-900 dark:text-surface-300">{contextMenu.name}</p>
                             <p className="text-[10px] text-surface-500 capitalize">{contextMenu.type}</p>
                         </div>
 
@@ -506,7 +506,7 @@ export default function DashboardPage() {
                             </button>
                         )}
 
-                        <hr className="my-1 border-surface-700" />
+                        <hr className="my-1 border-surface-200 dark:border-surface-700" />
 
                         {/* Share */}
                         <button onClick={handleShare} className="dropdown-item w-full">
