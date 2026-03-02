@@ -124,8 +124,15 @@ export const authApi = {
 
 export const userApi = {
     getMe: () => request('/users/me'),
-    updateMe: (data: { name?: string; avatarUrl?: string }) =>
-        request('/users/me', { method: 'PATCH', body: data }),
+    updateMe: (data: {
+        name?: string;
+        email?: string;
+        avatarUrl?: string;
+        currentPassword?: string;
+        newPassword?: string;
+    }) => request('/users/me', { method: 'PATCH', body: data }),
+    updateAvatar: (formData: FormData) =>
+        request('/users/me/avatar', { method: 'POST', body: formData }),
 };
 
 // ============================================
