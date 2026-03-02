@@ -138,16 +138,14 @@ export default function SettingsPage() {
                 setMfaLoading(false);
             }
         } else if (manageAction === 'disable') {
-            if (!window.confirm('Are you sure you want to disable Two-Factor Authentication? Your account will be less secure.')) {
-                setManageAction('none');
-                return;
-            }
+            if (!passwordConfirm) return;
             setMfaLoading(true);
             setMfaError('');
             try {
-                await authApi.disableMfa('', ''); // Credentials ignored by backend now
+                await authApi.disableMfa(passwordConfirm);
                 updateUser({ mfaEnabled: false } as any);
                 setManageAction('none');
+                setPasswordConfirm('');
             } catch (err: any) {
                 setMfaError(err.message || 'Action failed');
             } finally {
@@ -461,7 +459,7 @@ export default function SettingsPage() {
                         {manageAction === 'regenerate' ? 'Regenerate Recovery Codes' : 'Disable Two-Factor Authentication'}
                     </h3>
                     <p className="text-sm text-surface-500 dark:text-surface-400 mb-4">
-                        Please confirm your password and enter an authenticator code.
+                        {manageAction === 'disable' ? 'Please confirm your password to disable 2FA.' : 'Please confirm your password and enter code.'}
                     </p>
 
                     <div className="space-y-4">
@@ -479,17 +477,19 @@ export default function SettingsPage() {
                             </div>
                         </div>
 
-                        <div>
-                            <label className="mb-1.5 block text-xs font-medium text-surface-600 dark:text-surface-300">Authenticator Code</label>
-                            <input
-                                type="text"
-                                value={totpCode}
-                                onChange={(e) => setTotpCode(e.target.value)}
-                                placeholder="000000"
-                                className="input-field text-sm tracking-widest font-mono"
-                                maxLength={6}
-                            />
-                        </div>
+                        {manageAction !== 'disable' && (
+                            <div>
+                                <label className="mb-1.5 block text-xs font-medium text-surface-600 dark:text-surface-300">Authenticator Code</label>
+                                <input
+                                    type="text"
+                                    value={totpCode}
+                                    onChange={(e) => setTotpCode(e.target.value)}
+                                    placeholder="000000"
+                                    className="input-field text-sm tracking-widest font-mono"
+                                    maxLength={6}
+                                />
+                            </div>
+                        )}
 
                         <div className="flex gap-3 pt-2">
                             <button
@@ -500,7 +500,7 @@ export default function SettingsPage() {
                             </button>
                             <button
                                 onClick={handleManageAction}
-                                disabled={mfaLoading || !passwordConfirm || totpCode.length < 6}
+                                disabled={mfaLoading || !passwordConfirm || (manageAction !== 'disable' && totpCode.length < 6)}
                                 className={`btn-primary flex-1 text-sm text-white ${manageAction === 'disable' ? 'bg-red-600 hover:bg-red-700 border-red-600' : ''}`}
                             >
                                 {mfaLoading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : 'Confirm'}
