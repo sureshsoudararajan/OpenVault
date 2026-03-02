@@ -8,6 +8,12 @@ export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+
+    // MFA States
+    const [requireMfa, setRequireMfa] = useState(false);
+    const [totpCode, setTotpCode] = useState('');
+    const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const setAuth = useAuthStore((s) => s.setAuth);
@@ -19,15 +25,81 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            const res: any = await authApi.login({ email, password });
+            const payload: any = { email, password };
+            if (requireMfa && totpCode) {
+                payload.totpCode = totpCode;
+            }
+            const res: any = await authApi.login(payload);
             setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
             navigate('/');
         } catch (err: any) {
-            setError(err.message || 'Login failed');
+            if (err.code === 'MFA_REQUIRED' || err.response?.data?.error?.code === 'MFA_REQUIRED') {
+                setRequireMfa(true);
+            } else {
+                setError(err.message || 'Login failed');
+            }
         } finally {
             setLoading(false);
         }
     };
+
+    if (requireMfa) {
+        return (
+            <>
+                <div className="mb-6">
+                    <h2 className="text-2xl font-bold text-surface-900 dark:text-white">Two-Factor Authentication</h2>
+                    <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
+                        {isRecoveryMode ? 'Enter one of your 8-character backup codes.' : 'Enter the 6-digit code from your authenticator app.'}
+                    </p>
+                </div>
+
+                {error && (
+                    <div className="mb-4 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 px-4 py-3 text-sm text-red-600 dark:text-red-400 animate-fade-in">
+                        {error}
+                    </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <div>
+                        <label className="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-300">
+                            {isRecoveryMode ? 'Recovery Code' : 'Authentication Code'}
+                        </label>
+                        <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-400 dark:text-surface-500" />
+                            <input
+                                type="text"
+                                value={totpCode}
+                                onChange={(e) => setTotpCode(e.target.value)}
+                                className="input-field pl-10 tracking-widest text-center"
+                                placeholder={isRecoveryMode ? 'XXXXXXXX' : '000000'}
+                                maxLength={isRecoveryMode ? 8 : 6}
+                                required
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={loading || !totpCode}
+                        className="btn-primary w-full flex items-center justify-center gap-2 !text-white py-3 text-sm font-semibold"
+                    >
+                        {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Verifying...</> : 'Verify & Continue'}
+                    </button>
+
+                    <div className="text-center mt-4">
+                        <button
+                            type="button"
+                            onClick={() => setIsRecoveryMode(!isRecoveryMode)}
+                            className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 transition-colors"
+                        >
+                            {isRecoveryMode ? 'Use Authenticator App instead' : 'Use a Recovery Code'}
+                        </button>
+                    </div>
+                </form>
+            </>
+        );
+    }
 
     return (
         <>

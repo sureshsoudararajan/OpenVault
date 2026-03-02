@@ -9,6 +9,7 @@ interface User {
     role: string;
     storageQuota: number;
     storageUsed: number;
+    mfaEnabled: boolean;
 }
 
 interface AuthState {

@@ -113,6 +113,8 @@ export const authApi = {
 
     getMfaSetup: () => request('/auth/mfa/setup'),
     enableMfa: (totpCode: string) => request('/auth/mfa/enable', { method: 'POST', body: { totpCode } }),
+    regenerateMfa: (passwordConfirm: string, totpCode: string) => request('/auth/mfa/regenerate', { method: 'POST', body: { passwordConfirm, totpCode } }),
+    disableMfa: (passwordConfirm: string, totpCode: string) => request('/auth/mfa/disable', { method: 'POST', body: { passwordConfirm, totpCode } }),
 };
 
 // ============================================
