@@ -153,10 +153,10 @@ export default function AppShell() {
                     </button>
 
                     {/* User Menu */}
-                    <div className="relative">
+                    <div className="relative ml-auto">
                         <button
                             onClick={() => setUserMenuOpen(!userMenuOpen)}
-                            className="flex items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-surface-800"
+                            className="flex items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-surface-100 dark:hover:bg-surface-800"
                         >
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-sm font-semibold text-white">
                                 {user?.name?.charAt(0).toUpperCase() || 'U'}
