@@ -11,8 +11,8 @@
   /* Dark Mode (default) */
   :root,
   .dark {
-    --gradient-primary: linear-gradient(135deg, #10b981 0%, #06b6d4 50%, #3b82f6 100%);
-    --gradient-accent: linear-gradient(135deg, #06b6d4 0%, #10b981 50%, #34d399 100%);
+    --gradient-primary: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+    --gradient-accent: linear-gradient(135deg, #a855f7 0%, #6366f1 50%, #818cf8 100%);
     --gradient-surface: linear-gradient(180deg, #121218 0%, #1c1c24 100%);
     --glass-bg: rgba(28, 28, 36, 0.7);
     --glass-border: rgba(113, 113, 122, 0.12);
@@ -20,14 +20,14 @@
     --text-body: #fafafa;
     --scrollbar-thumb: rgba(82, 82, 91, 0.4);
     --scrollbar-hover: rgba(82, 82, 91, 0.6);
-    --selection-bg: rgba(16, 185, 129, 0.3);
-    --selection-text: #ecfdf5;
+    --selection-bg: rgba(99, 102, 241, 0.3);
+    --selection-text: #eef2ff;
   }
 
   /* Light Mode */
   .light {
-    --gradient-primary: linear-gradient(135deg, #059669 0%, #0891b2 50%, #2563eb 100%);
-    --gradient-accent: linear-gradient(135deg, #0891b2 0%, #059669 50%, #10b981 100%);
+    --gradient-primary: linear-gradient(135deg, #4f46e5 0%, #9333ea 50%, #db2777 100%);
+    --gradient-accent: linear-gradient(135deg, #9333ea 0%, #4f46e5 50%, #6366f1 100%);
     --gradient-surface: linear-gradient(180deg, #f4f4f5 0%, #ffffff 100%);
     --glass-bg: rgba(255, 255, 255, 0.8);
     --glass-border: rgba(0, 0, 0, 0.08);
@@ -35,8 +35,8 @@
     --text-body: #18181b;
     --scrollbar-thumb: rgba(161, 161, 170, 0.4);
     --scrollbar-hover: rgba(161, 161, 170, 0.6);
-    --selection-bg: rgba(5, 150, 105, 0.2);
-    --selection-text: #022c22;
+    --selection-bg: rgba(79, 70, 229, 0.2);
+    --selection-text: #1e1b4b;
   }
 
   body {
