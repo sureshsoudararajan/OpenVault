@@ -77,8 +77,9 @@ async function request<T = unknown>(endpoint: string, options: RequestOptions = 
     // Otherwise throw standard error logic
     if (!response.ok) {
         const errData = await response.json().catch(() => null);
-        const errorToThrow = errData?.error || new Error(`Request failed with status ${response.status}`);
-        if (errData?.data && typeof errorToThrow === 'object') {
+        const message = errData?.message || errData?.error?.message || (typeof errData?.error === 'string' ? errData.error : false) || `Request failed with status ${response.status}`;
+        const errorToThrow = new ApiError(response.status, message, errData?.code || errData?.error?.code);
+        if (errData?.data) {
             (errorToThrow as any).data = errData.data;
         }
         throw errorToThrow;

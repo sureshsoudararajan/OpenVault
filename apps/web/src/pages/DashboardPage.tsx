@@ -268,16 +268,16 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <div className="flex rounded-lg border border-surface-700 bg-surface-800/50 p-0.5">
+                    <div className="flex rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-100/50 dark:bg-surface-800/50 p-0.5">
                         <button
                             onClick={() => setViewMode('grid')}
-                            className={`rounded-md p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-brand-500/20 text-brand-400' : 'text-surface-500 hover:text-white'}`}
+                            className={`rounded-md p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-brand-500/10 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400' : 'text-surface-500 hover:text-surface-900 dark:hover:text-white'}`}
                         >
                             <Grid3X3 className="h-4 w-4" />
                         </button>
                         <button
                             onClick={() => setViewMode('list')}
-                            className={`rounded-md p-1.5 transition-colors ${viewMode === 'list' ? 'bg-brand-500/20 text-brand-400' : 'text-surface-500 hover:text-white'}`}
+                            className={`rounded-md p-1.5 transition-colors ${viewMode === 'list' ? 'bg-brand-500/10 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400' : 'text-surface-500 hover:text-surface-900 dark:hover:text-white'}`}
                         >
                             <List className="h-4 w-4" />
                         </button>

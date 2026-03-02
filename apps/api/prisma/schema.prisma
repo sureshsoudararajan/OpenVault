@@ -37,6 +37,7 @@ model User {
   activityLogs   ActivityLog[]
   encryptionKeys EncryptionKey[]
   permissionsGranted  Permission[]  @relation("GrantedBy")
+  permissionsReceived Permission[]  @relation("GrantedTo")
   shareLinksCreated   ShareLink[]
   fileVersions        FileVersion[]
   recoveryCodes       RecoveryCode[]
