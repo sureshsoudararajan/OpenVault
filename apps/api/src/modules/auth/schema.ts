@@ -22,7 +22,7 @@ export const enableMfaSchema = z.object({
 
 export const passwordConfirmSchema = z.object({
     passwordConfirm: z.string().min(1, 'Password confirmation is required'),
-    totpCode: z.string().length(6, 'TOTP code must be 6 digits'),
+    totpCode: z.string().length(6, 'TOTP code must be 6 digits').optional(),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

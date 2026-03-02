@@ -283,6 +283,35 @@ export async function disableMfaSimple(userId: string) {
 }
 
 /**
+ * Disable MFA with password confirmation only.
+ */
+export async function disableMfaWithPassword(userId: string, passwordConfirm: string) {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { passwordHash: true }
+    });
+
+    if (!user?.passwordHash) {
+        throw Object.assign(new Error('User setup incomplete'), { statusCode: 400 });
+    }
+
+    const isPasswordValid = await argon2.verify(user.passwordHash, passwordConfirm);
+    if (!isPasswordValid) {
+        throw Object.assign(new Error('Invalid password confirmation'), { statusCode: 401 });
+    }
+
+    await prisma.$transaction([
+        prisma.recoveryCode.deleteMany({ where: { userId } }),
+        prisma.user.update({
+            where: { id: userId },
+            data: { mfaEnabled: false, totpSecret: null }
+        })
+    ]);
+
+    return { success: true };
+}
+
+/**
  * Logout — invalidate a session.
  */
 export async function logout(refreshToken: string) {
