@@ -122,27 +122,37 @@ export default function SettingsPage() {
     };
 
     const handleManageAction = async () => {
-        if (!passwordConfirm || !totpCode) return;
-        setMfaLoading(true);
-        setMfaError('');
-        try {
-            if (manageAction === 'regenerate') {
+        if (manageAction === 'regenerate') {
+            if (!passwordConfirm || !totpCode) return;
+            setMfaLoading(true);
+            setMfaError('');
+            try {
                 const res: any = await authApi.regenerateMfa(passwordConfirm, totpCode);
                 setRecoveryCodes(res.data.recoveryCodes);
                 setManageAction('none');
                 setPasswordConfirm('');
                 setTotpCode('');
-            } else if (manageAction === 'disable') {
-                await authApi.disableMfa(passwordConfirm, totpCode);
+            } catch (err: any) {
+                setMfaError(err.message || 'Action failed');
+            } finally {
+                setMfaLoading(false);
+            }
+        } else if (manageAction === 'disable') {
+            if (!window.confirm('Are you sure you want to disable Two-Factor Authentication? Your account will be less secure.')) {
+                setManageAction('none');
+                return;
+            }
+            setMfaLoading(true);
+            setMfaError('');
+            try {
+                await authApi.disableMfa('', ''); // Credentials ignored by backend now
                 updateUser({ mfaEnabled: false } as any);
                 setManageAction('none');
-                setPasswordConfirm('');
-                setTotpCode('');
+            } catch (err: any) {
+                setMfaError(err.message || 'Action failed');
+            } finally {
+                setMfaLoading(false);
             }
-        } catch (err: any) {
-            setMfaError(err.message || 'Action failed');
-        } finally {
-            setMfaLoading(false);
         }
     };
 
