@@ -10,7 +10,7 @@ export default function AuthLayout() {
             {/* Theme toggle */}
             <button
                 onClick={toggleTheme}
-                className="fixed top-4 right-4 z-50 rounded-xl p-2.5 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-surface-500 hover:text-amber-500 dark:hover:text-yellow-400 shadow-lg transition-all duration-300 hover:scale-105"
+                className="fixed top-4 right-4 z-50 rounded-xl p-2.5 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-surface-500 dark:text-surface-300 hover:text-amber-500 dark:hover:text-yellow-400 hover:bg-surface-50 dark:hover:bg-surface-700 shadow-lg transition-all duration-300 hover:scale-105"
                 title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
                 {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
