@@ -268,6 +268,21 @@ export async function disableMfa(userId: string, passwordConfirm: string, totpCo
 }
 
 /**
+ * Disable MFA without credential verification (Simple flow).
+ */
+export async function disableMfaSimple(userId: string) {
+    await prisma.$transaction([
+        prisma.recoveryCode.deleteMany({ where: { userId } }),
+        prisma.user.update({
+            where: { id: userId },
+            data: { mfaEnabled: false, totpSecret: null }
+        })
+    ]);
+
+    return { success: true };
+}
+
+/**
  * Logout — invalidate a session.
  */
 export async function logout(refreshToken: string) {

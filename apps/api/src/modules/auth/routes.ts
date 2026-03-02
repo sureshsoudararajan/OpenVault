@@ -54,8 +54,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     // POST /api/auth/mfa/disable — Disable MFA entirely
     app.post('/mfa/disable', { preHandler: [authGuard] }, async (request, reply) => {
-        const body = passwordConfirmSchema.parse(request.body);
-        const result = await authService.disableMfa(request.userId, body.passwordConfirm, body.totpCode);
+        const result = await authService.disableMfaSimple(request.userId);
         reply.send({ success: true, data: result });
     });
 }
