@@ -35,7 +35,7 @@ export async function registerUser(input: RegisterInput) {
             passwordHash,
             name: input.name,
         },
-        select: { id: true, email: true, name: true, role: true },
+        select: { id: true, email: true, name: true, role: true, mfaEnabled: true },
     });
 
     const tokens = await createSession(user.id, user.email, user.role);
@@ -94,7 +94,7 @@ export async function loginUser(input: LoginInput, ipAddress?: string, userAgent
 
     const tokens = await createSession(user.id, user.email, user.role, ipAddress, userAgent);
     return {
-        user: { id: user.id, email: user.email, name: user.name, role: user.role, avatarUrl: user.avatarUrl },
+        user: { id: user.id, email: user.email, name: user.name, role: user.role, avatarUrl: user.avatarUrl, mfaEnabled: user.mfaEnabled },
         ...tokens,
     };
 }
@@ -105,7 +105,7 @@ export async function loginUser(input: LoginInput, ipAddress?: string, userAgent
 export async function refreshAccessToken(refreshToken: string) {
     const session = await prisma.session.findFirst({
         where: { refreshToken, expiresAt: { gt: new Date() } },
-        include: { user: { select: { id: true, email: true, role: true } } },
+        include: { user: { select: { id: true, email: true, role: true, name: true, avatarUrl: true, mfaEnabled: true } } },
     });
 
     if (!session) {
