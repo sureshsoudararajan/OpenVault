@@ -123,15 +123,14 @@ export default function SettingsPage() {
 
     const handleManageAction = async () => {
         if (manageAction === 'regenerate') {
-            if (!passwordConfirm || !totpCode) return;
+            if (!passwordConfirm) return;
             setMfaLoading(true);
             setMfaError('');
             try {
-                const res: any = await authApi.regenerateMfa(passwordConfirm, totpCode);
+                const res: any = await authApi.regenerateMfa(passwordConfirm);
                 setRecoveryCodes(res.data.recoveryCodes);
                 setManageAction('none');
                 setPasswordConfirm('');
-                setTotpCode('');
             } catch (err: any) {
                 setMfaError(err.message || 'Action failed');
             } finally {
@@ -459,7 +458,9 @@ export default function SettingsPage() {
                         {manageAction === 'regenerate' ? 'Regenerate Recovery Codes' : 'Disable Two-Factor Authentication'}
                     </h3>
                     <p className="text-sm text-surface-500 dark:text-surface-400 mb-4">
-                        {manageAction === 'disable' ? 'Please confirm your password to disable 2FA.' : 'Please confirm your password and enter code.'}
+                        {manageAction === 'disable' || manageAction === 'regenerate'
+                            ? 'Please confirm your password to proceed.'
+                            : 'Please confirm your password and enter code.'}
                     </p>
 
                     <div className="space-y-4">
@@ -477,7 +478,7 @@ export default function SettingsPage() {
                             </div>
                         </div>
 
-                        {manageAction !== 'disable' && (
+                        {manageAction !== 'disable' && manageAction !== 'regenerate' && (
                             <div>
                                 <label className="mb-1.5 block text-xs font-medium text-surface-600 dark:text-surface-300">Authenticator Code</label>
                                 <input
@@ -500,7 +501,7 @@ export default function SettingsPage() {
                             </button>
                             <button
                                 onClick={handleManageAction}
-                                disabled={mfaLoading || !passwordConfirm || (manageAction !== 'disable' && totpCode.length < 6)}
+                                disabled={mfaLoading || !passwordConfirm || (manageAction !== 'disable' && manageAction !== 'regenerate' && totpCode.length < 6)}
                                 className={`btn-primary flex-1 text-sm text-white ${manageAction === 'disable' ? 'bg-red-600 hover:bg-red-700 border-red-600' : ''}`}
                             >
                                 {mfaLoading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : 'Confirm'}

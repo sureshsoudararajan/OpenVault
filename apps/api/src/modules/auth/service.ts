@@ -195,9 +195,9 @@ export async function enableMfa(userId: string, totpCode: string) {
 
 /**
  * Regenerate recovery backup codes securely.
- * Requires password confirmation and OTP validation.
+ * Requires password confirmation.
  */
-export async function regenerateMfaCodes(userId: string, passwordConfirm: string, totpCode: string) {
+export async function regenerateMfaCodes(userId: string, passwordConfirm: string, totpCode?: string) {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true, totpSecret: true } });
     if (!user?.passwordHash || !user?.totpSecret) {
         throw Object.assign(new Error('User setup incomplete'), { statusCode: 400 });
@@ -208,10 +208,7 @@ export async function regenerateMfaCodes(userId: string, passwordConfirm: string
         throw Object.assign(new Error('Invalid password confirmation'), { statusCode: 401 });
     }
 
-    const isValidTotp = authenticator.verify({ token: totpCode, secret: user.totpSecret });
-    if (!isValidTotp) {
-        throw Object.assign(new Error('Invalid MFA code'), { statusCode: 401 });
-    }
+    // TOTP verification removed as per user request for password-only regeneration
 
     const codes: string[] = [];
     const hashedCodes = [];
