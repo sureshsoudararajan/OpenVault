@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { registerSchema, loginSchema, refreshTokenSchema, enableMfaSchema } from './schema';
+import { registerSchema, loginSchema, refreshTokenSchema, enableMfaSchema, passwordConfirmSchema } from './schema';
 import * as authService from './service';
 import { authGuard } from '../../middleware/auth';
 
@@ -42,6 +42,20 @@ export async function authRoutes(app: FastifyInstance) {
     app.post('/mfa/enable', { preHandler: [authGuard] }, async (request, reply) => {
         const body = enableMfaSchema.parse(request.body);
         const result = await authService.enableMfa(request.userId, body.totpCode);
+        reply.send({ success: true, data: result });
+    });
+
+    // POST /api/auth/mfa/regenerate — Regenerate backup codes
+    app.post('/mfa/regenerate', { preHandler: [authGuard] }, async (request, reply) => {
+        const body = passwordConfirmSchema.parse(request.body);
+        const result = await authService.regenerateMfaCodes(request.userId, body.passwordConfirm, body.totpCode);
+        reply.send({ success: true, data: result });
+    });
+
+    // POST /api/auth/mfa/disable — Disable MFA entirely
+    app.post('/mfa/disable', { preHandler: [authGuard] }, async (request, reply) => {
+        const body = passwordConfirmSchema.parse(request.body);
+        const result = await authService.disableMfa(request.userId, body.passwordConfirm, body.totpCode);
         reply.send({ success: true, data: result });
     });
 }

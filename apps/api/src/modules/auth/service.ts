@@ -1,6 +1,11 @@
 import jwt from 'jsonwebtoken';
 import argon2 from 'argon2';
 import { authenticator } from 'otplib';
+import QRCode from 'qrcode';
+
+// Allow a 1-step window (±30s) to handle slight clock deviations
+authenticator.options = { window: 1 };
+
 import prisma from '../../db/index';
 import { loadConfig } from '@openvault/config';
 import { generateUrlSafeToken } from '@openvault/crypto';
@@ -56,8 +61,33 @@ export async function loginUser(input: LoginInput, ipAddress?: string, userAgent
         if (!input.totpCode) {
             throw Object.assign(new Error('MFA code required'), { statusCode: 403, code: 'MFA_REQUIRED' });
         }
-        const isValidTotp = authenticator.verify({ token: input.totpCode, secret: user.totpSecret });
-        if (!isValidTotp) {
+
+        let isMfaValid = false;
+
+        // Try TOTP if it's potentially a 6-digit code
+        isMfaValid = authenticator.verify({ token: input.totpCode, secret: user.totpSecret });
+
+        // Fallback to testing Recovery Backup codes
+        if (!isMfaValid && input.totpCode.length === 8) {
+            const recoveryCodes = await prisma.recoveryCode.findMany({
+                where: { userId: user.id, used: false }
+            });
+
+            for (const record of recoveryCodes) {
+                const isMatch = await argon2.verify(record.codeHash, input.totpCode);
+                if (isMatch) {
+                    isMfaValid = true;
+                    // Mark this specific recovery code as exhausted
+                    await prisma.recoveryCode.update({
+                        where: { id: record.id },
+                        data: { used: true, usedAt: new Date() }
+                    });
+                    break;
+                }
+            }
+        }
+
+        if (!isMfaValid) {
             throw Object.assign(new Error('Invalid MFA code'), { statusCode: 401, code: 'INVALID_MFA' });
         }
     }
@@ -100,23 +130,26 @@ export async function refreshAccessToken(refreshToken: string) {
 }
 
 /**
- * Generate TOTP secret for MFA setup.
+ * Generate TOTP secret and QR code for setup.
  */
 export async function generateMfaSecret(userId: string) {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
-    if (!user) throw Object.assign(new Error('User not found'), { statusCode: 404 });
+    if (!user) throw new Error('User not found');
 
-    const secret = authenticator.generateSecret();
+    const secret = authenticator.generateSecret(32);
     const otpauthUrl = authenticator.keyuri(user.email, 'OpenVault', secret);
+
+    // Generate Base64 QR Code
+    const qrCodeUrl = await QRCode.toDataURL(otpauthUrl);
 
     // Save secret temporarily (will be confirmed when user verifies)
     await prisma.user.update({ where: { id: userId }, data: { totpSecret: secret } });
 
-    return { secret, otpauthUrl };
+    return { secret, qrCodeUrl };
 }
 
 /**
- * Verify and enable MFA for a user.
+ * Verify and enable MFA for a user, then generate exactly 10 backup recovery codes.
  */
 export async function enableMfa(userId: string, totpCode: string) {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { totpSecret: true } });
@@ -129,8 +162,109 @@ export async function enableMfa(userId: string, totpCode: string) {
         throw Object.assign(new Error('Invalid TOTP code'), { statusCode: 401 });
     }
 
-    await prisma.user.update({ where: { id: userId }, data: { mfaEnabled: true } });
-    return { enabled: true };
+    // Generate exactly 10 uppercase alphanumeric backup codes of length 8
+    const codes: string[] = [];
+    const hashedCodes = [];
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+    for (let i = 0; i < 10; i++) {
+        let code = '';
+        for (let j = 0; j < 8; j++) {
+            code += charset.charAt(Math.floor(Math.random() * charset.length));
+        }
+        codes.push(code);
+
+        const codeHash = await argon2.hash(code);
+        hashedCodes.push({ userId, codeHash });
+    }
+
+    await prisma.$transaction([
+        // Clear any old recovery codes (just in case)
+        prisma.recoveryCode.deleteMany({ where: { userId } }),
+
+        // Insert 10 new hashes
+        prisma.recoveryCode.createMany({ data: hashedCodes }),
+
+        // Enable 2FA on user
+        prisma.user.update({ where: { id: userId }, data: { mfaEnabled: true } })
+    ]);
+
+    // Return the plain text codes strictly ONLY ONCE
+    return { enabled: true, recoveryCodes: codes };
+}
+
+/**
+ * Regenerate recovery backup codes securely.
+ * Requires password confirmation and OTP validation.
+ */
+export async function regenerateMfaCodes(userId: string, passwordConfirm: string, totpCode: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true, totpSecret: true } });
+    if (!user?.passwordHash || !user?.totpSecret) {
+        throw Object.assign(new Error('User setup incomplete'), { statusCode: 400 });
+    }
+
+    const isPasswordValid = await argon2.verify(user.passwordHash, passwordConfirm);
+    if (!isPasswordValid) {
+        throw Object.assign(new Error('Invalid password confirmation'), { statusCode: 401 });
+    }
+
+    const isValidTotp = authenticator.verify({ token: totpCode, secret: user.totpSecret });
+    if (!isValidTotp) {
+        throw Object.assign(new Error('Invalid MFA code'), { statusCode: 401 });
+    }
+
+    const codes: string[] = [];
+    const hashedCodes = [];
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+    for (let i = 0; i < 10; i++) {
+        let code = '';
+        for (let j = 0; j < 8; j++) {
+            code += charset.charAt(Math.floor(Math.random() * charset.length));
+        }
+        codes.push(code);
+
+        const codeHash = await argon2.hash(code);
+        hashedCodes.push({ userId, codeHash });
+    }
+
+    await prisma.$transaction([
+        prisma.recoveryCode.deleteMany({ where: { userId } }),
+        prisma.recoveryCode.createMany({ data: hashedCodes })
+    ]);
+
+    return { success: true, recoveryCodes: codes };
+}
+
+/**
+ * Disable MFA securely.
+ * Requires password confirmation and OTP validation.
+ */
+export async function disableMfa(userId: string, passwordConfirm: string, totpCode: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true, totpSecret: true } });
+    if (!user?.passwordHash || !user?.totpSecret) {
+        throw Object.assign(new Error('User setup incomplete'), { statusCode: 400 });
+    }
+
+    const isPasswordValid = await argon2.verify(user.passwordHash, passwordConfirm);
+    if (!isPasswordValid) {
+        throw Object.assign(new Error('Invalid password confirmation'), { statusCode: 401 });
+    }
+
+    const isValidTotp = authenticator.verify({ token: totpCode, secret: user.totpSecret });
+    if (!isValidTotp) {
+        throw Object.assign(new Error('Invalid MFA code'), { statusCode: 401 });
+    }
+
+    await prisma.$transaction([
+        prisma.recoveryCode.deleteMany({ where: { userId } }),
+        prisma.user.update({
+            where: { id: userId },
+            data: { mfaEnabled: false, totpSecret: null }
+        })
+    ]);
+
+    return { disabled: true };
 }
 
 /**

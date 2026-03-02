@@ -37,9 +37,9 @@ model User {
   activityLogs   ActivityLog[]
   encryptionKeys EncryptionKey[]
   permissionsGranted  Permission[]  @relation("GrantedBy")
-  permissionsReceived Permission[]  @relation("GrantedTo")
   shareLinksCreated   ShareLink[]
   fileVersions        FileVersion[]
+  recoveryCodes       RecoveryCode[]
 
   @@map("users")
 }
@@ -58,6 +58,20 @@ model Session {
   @@index([userId])
   @@index([refreshToken])
   @@map("sessions")
+}
+
+model RecoveryCode {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  codeHash  String    @map("code_hash") @db.VarChar(255)
+  used      Boolean   @default(false)
+  createdAt DateTime  @default(now()) @map("created_at")
+  usedAt    DateTime? @map("used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("recovery_codes")
 }
 
 // ============================================
