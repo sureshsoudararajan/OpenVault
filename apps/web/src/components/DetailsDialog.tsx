@@ -254,8 +254,12 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
                                     <div className="space-y-2">
                                         {permissions.map((perm: any) => (
                                             <div key={perm.id} className="flex items-center gap-3 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/30 px-3 py-2.5">
-                                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-xs font-semibold text-white">
-                                                    {perm.grantedTo?.name?.charAt(0).toUpperCase() || '?'}
+                                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-xs font-semibold text-white overflow-hidden">
+                                                    {perm.grantedTo?.avatarUrl ? (
+                                                        <img src={perm.grantedTo.avatarUrl} alt={perm.grantedTo.name} className="h-full w-full object-cover" />
+                                                    ) : (
+                                                        perm.grantedTo?.name?.charAt(0).toUpperCase() || '?'
+                                                    )}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm text-surface-900 dark:text-white truncate">{perm.grantedTo?.name || 'Unknown'}</p>

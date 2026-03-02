@@ -158,8 +158,12 @@ export default function AppShell() {
                             onClick={() => setUserMenuOpen(!userMenuOpen)}
                             className="flex items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-surface-100 dark:hover:bg-surface-800"
                         >
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-sm font-semibold text-white">
-                                {user?.name?.charAt(0).toUpperCase() || 'U'}
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-sm font-semibold text-white overflow-hidden">
+                                {user?.avatarUrl ? (
+                                    <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+                                ) : (
+                                    user?.name?.charAt(0).toUpperCase() || 'U'
+                                )}
                             </div>
                             <span className={`hidden text-sm font-medium md:block ${theme === 'dark' ? 'text-surface-300' : 'text-surface-600'}`}>{user?.name}</span>
                             <ChevronDown className="h-3.5 w-3.5 text-surface-500" />
