@@ -5,6 +5,7 @@ import rateLimit from '@fastify/rate-limit';
 import cookie from '@fastify/cookie';
 import multipart from '@fastify/multipart';
 import websocket from '@fastify/websocket';
+import { ZodError } from 'zod';
 import { loadConfig } from '@openvault/config';
 import { authRoutes } from './modules/auth/routes';
 import { userRoutes } from './modules/users/routes';
@@ -83,10 +84,10 @@ export async function buildApp() {
 
     // ---- Global Error Handler ----
     app.setErrorHandler((error, request, reply) => {
-        const statusCode = error.statusCode ?? 500;
+        const statusCode = (error as any).statusCode ?? 500;
 
         app.log.error({
-            err: error,
+            err: error as any,
             request: {
                 method: request.method,
                 url: request.url,
@@ -94,14 +95,22 @@ export async function buildApp() {
             },
         });
 
+        let message = (error as any).message || 'An unexpected error occurred';
+        let code = (error as any).code ?? 'INTERNAL_ERROR';
+
+        if (error instanceof ZodError) {
+            message = error.errors[0]?.message || 'Validation failed';
+            code = 'VALIDATION_ERROR';
+        }
+
         reply.status(statusCode).send({
             success: false,
             error: {
-                code: error.code ?? 'INTERNAL_ERROR',
+                code,
                 message:
                     config.nodeEnv === 'production' && statusCode >= 500
                         ? 'Internal server error'
-                        : error.message,
+                        : message,
             },
         });
     });
