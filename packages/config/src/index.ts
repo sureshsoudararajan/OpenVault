@@ -59,6 +59,13 @@ export interface AppConfig {
         maxChunkSize: number;
         defaultStorageQuota: number;
     };
+    smtp?: {
+        host: string;
+        port: number;
+        secure: boolean;
+        user: string;
+        pass: string;
+    };
 }
 
 /**
@@ -123,6 +130,13 @@ export function loadConfig(): AppConfig {
             maxChunkSize: envInt('MAX_CHUNK_SIZE', 10485760),       // 10MB
             defaultStorageQuota: envInt('DEFAULT_STORAGE_QUOTA', 5368709120), // 5GB
         },
+        smtp: process.env.SMTP_HOST ? {
+            host: env('SMTP_HOST'),
+            port: envInt('SMTP_PORT', 587),
+            secure: envBool('SMTP_SECURE', false),
+            user: env('SMTP_USER'),
+            pass: env('SMTP_PASS'),
+        } : undefined,
     };
 }
 

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { authApi } from '../services/api';
-import { Mail, Lock, Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Loader2, ArrowRight, RefreshCw, Send } from 'lucide-react';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -13,9 +13,15 @@ export default function LoginPage() {
     const [requireMfa, setRequireMfa] = useState(false);
     const [totpCode, setTotpCode] = useState('');
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+    const [isEmailCodeMode, setIsEmailCodeMode] = useState(false);
+    const [sendingEmailCode, setSendingEmailCode] = useState(false);
+    const [emailCodeSent, setEmailCodeSent] = useState(false);
 
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [notActivated, setNotActivated] = useState(false);
+    const [resending, setResending] = useState(false);
+    const [resendSuccess, setResendSuccess] = useState(false);
     const setAuth = useAuthStore((s) => s.setAuth);
     const navigate = useNavigate();
 
@@ -27,7 +33,11 @@ export default function LoginPage() {
         try {
             const payload: any = { email, password };
             if (requireMfa && totpCode) {
-                payload.totpCode = totpCode;
+                if (isEmailCodeMode) {
+                    payload.emailCode = totpCode;
+                } else {
+                    payload.totpCode = totpCode;
+                }
             }
             const res: any = await authApi.login(payload);
             setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
@@ -35,11 +45,43 @@ export default function LoginPage() {
         } catch (err: any) {
             if (err.code === 'MFA_REQUIRED' || err.response?.data?.error?.code === 'MFA_REQUIRED') {
                 setRequireMfa(true);
+            } else if (err.code === 'ACCOUNT_NOT_ACTIVATED') {
+                setNotActivated(true);
+                setError('Your account is not yet activated. Please check your email or resend the activation link.');
             } else {
                 setError(err.message || 'Login failed');
             }
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleResendActivation = async () => {
+        setResending(true);
+        setResendSuccess(false);
+        try {
+            await authApi.resendActivation(email);
+            setResendSuccess(true);
+        } catch (err: any) {
+            setError(err.message || 'Failed to resend activation email');
+        } finally {
+            setResending(false);
+        }
+    };
+
+    const handleSendEmailCode = async () => {
+        setSendingEmailCode(true);
+        setError('');
+        try {
+            await authApi.sendLoginCode(email);
+            setIsEmailCodeMode(true);
+            setIsRecoveryMode(false);
+            setEmailCodeSent(true);
+            setTotpCode('');
+        } catch (err: any) {
+            setError(err.message || 'Failed to send email code');
+        } finally {
+            setSendingEmailCode(false);
         }
     };
 
@@ -49,7 +91,11 @@ export default function LoginPage() {
                 <div className="mb-6">
                     <h2 className="text-2xl font-bold text-surface-900 dark:text-white">Two-Factor Authentication</h2>
                     <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
-                        {isRecoveryMode ? 'Enter one of your 8-character backup codes.' : 'Enter the 6-digit code from your authenticator app.'}
+                        {isEmailCodeMode
+                            ? 'Enter the 6-digit code sent to your email.'
+                            : isRecoveryMode
+                                ? 'Enter one of your 8-character backup codes.'
+                                : 'Enter the 6-digit code from your authenticator app.'}
                     </p>
                 </div>
 
@@ -59,19 +105,29 @@ export default function LoginPage() {
                     </div>
                 )}
 
+                {emailCodeSent && (
+                    <div className="mb-4 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400 animate-fade-in">
+                        ✓ Verification code sent to your email!
+                    </div>
+                )}
+
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                         <label className="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-300">
-                            {isRecoveryMode ? 'Recovery Code' : 'Authentication Code'}
+                            {isEmailCodeMode ? 'Email Code' : isRecoveryMode ? 'Recovery Code' : 'Authentication Code'}
                         </label>
                         <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-400 dark:text-surface-500" />
+                            {isEmailCodeMode ? (
+                                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-400 dark:text-surface-500" />
+                            ) : (
+                                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-400 dark:text-surface-500" />
+                            )}
                             <input
                                 type="text"
                                 value={totpCode}
                                 onChange={(e) => setTotpCode(e.target.value)}
                                 className="input-field pl-10 tracking-widest text-center"
-                                placeholder={isRecoveryMode ? 'XXXXXXXX' : '000000'}
+                                placeholder={isEmailCodeMode ? '000000' : isRecoveryMode ? 'XXXXXXXX' : '000000'}
                                 maxLength={isRecoveryMode ? 8 : 6}
                                 required
                                 autoFocus
@@ -87,14 +143,37 @@ export default function LoginPage() {
                         {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Verifying...</> : 'Verify & Continue'}
                     </button>
 
-                    <div className="text-center mt-4">
-                        <button
-                            type="button"
-                            onClick={() => setIsRecoveryMode(!isRecoveryMode)}
-                            className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 transition-colors"
-                        >
-                            {isRecoveryMode ? 'Use Authenticator App instead' : 'Use a Recovery Code'}
-                        </button>
+                    <div className="flex flex-col items-center gap-2 mt-4">
+                        {!isRecoveryMode && !isEmailCodeMode && (
+                            <button
+                                type="button"
+                                onClick={() => { setIsRecoveryMode(true); setTotpCode(''); }}
+                                className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 transition-colors"
+                            >
+                                Use a Recovery Code
+                            </button>
+                        )}
+                        {(isRecoveryMode || isEmailCodeMode) && (
+                            <button
+                                type="button"
+                                onClick={() => { setIsRecoveryMode(false); setIsEmailCodeMode(false); setTotpCode(''); setEmailCodeSent(false); }}
+                                className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 transition-colors"
+                            >
+                                Use Authenticator App
+                            </button>
+                        )}
+                        {!isEmailCodeMode && (
+                            <button
+                                type="button"
+                                onClick={handleSendEmailCode}
+                                disabled={sendingEmailCode}
+                                className="inline-flex items-center gap-1.5 text-sm font-medium text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200 transition-colors disabled:opacity-50"
+                            >
+                                {sendingEmailCode
+                                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Sending...</>
+                                    : <><Send className="h-3.5 w-3.5" /> Lost authenticator? Send code to email</>}
+                            </button>
+                        )}
                     </div>
                 </form>
             </>
@@ -111,6 +190,25 @@ export default function LoginPage() {
             {error && (
                 <div className="mb-4 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 px-4 py-3 text-sm text-red-600 dark:text-red-400 animate-fade-in">
                     {error}
+                </div>
+            )}
+
+            {notActivated && !resendSuccess && (
+                <div className="mb-4 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-4 py-3 animate-fade-in">
+                    <p className="text-sm text-amber-700 dark:text-amber-400 mb-2">Your account needs to be activated.</p>
+                    <button
+                        onClick={handleResendActivation}
+                        disabled={resending}
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors disabled:opacity-50"
+                    >
+                        {resending ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Sending...</> : <><RefreshCw className="h-3.5 w-3.5" /> Resend Activation Email</>}
+                    </button>
+                </div>
+            )}
+
+            {resendSuccess && (
+                <div className="mb-4 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400 animate-fade-in">
+                    ✓ Activation email sent! Please check your inbox and click the activation link.
                 </div>
             )}
 
@@ -133,9 +231,9 @@ export default function LoginPage() {
                 <div>
                     <div className="mb-1.5 flex items-center justify-between">
                         <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">Password</label>
-                        <button type="button" className="text-xs text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors">
+                        <Link to="/forgot-password" className="text-xs text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors">
                             Forgot password?
-                        </button>
+                        </Link>
                     </div>
                     <div className="relative">
                         <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-400 dark:text-surface-500" />

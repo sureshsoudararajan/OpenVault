@@ -1,12 +1,14 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { userApi, authApi } from '../services/api';
-import { Settings, User, Shield, HardDrive, Key, Loader2, Copy, Download, QrCode, AlertTriangle } from 'lucide-react';
+import { Settings, User, Shield, HardDrive, Key, Loader2, Copy, Download, QrCode, AlertTriangle, Lock, Eye, EyeOff, ShieldCheck, Mail, Send } from 'lucide-react';
 
 export default function SettingsPage() {
     const { user, updateUser } = useAuthStore();
     const [name, setName] = useState(user?.name || '');
     const [email, setEmail] = useState(user?.email || '');
+    const [secondaryEmail, setSecondaryEmail] = useState(user?.secondaryEmail || '');
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [error, setError] = useState('');
@@ -34,11 +36,22 @@ export default function SettingsPage() {
     const [manageAction, setManageAction] = useState<'none' | 'regenerate' | 'disable'>('none');
     const [passwordConfirm, setPasswordConfirm] = useState('');
 
+    // Forgot Password State
+    const [forgotModalOpen, setForgotModalOpen] = useState(false);
+    const [forgotStep, setForgotStep] = useState<'request' | 'verify'>('request');
+    const [forgotCode, setForgotCode] = useState('');
+    const [forgotNewPassword, setForgotNewPassword] = useState('');
+    const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
+    const [forgotShowPassword, setForgotShowPassword] = useState(false);
+    const [forgotLoading, setForgotLoading] = useState(false);
+    const [forgotError, setForgotError] = useState('');
+    const [forgotSuccess, setForgotSuccess] = useState(false);
+
     const handleSaveProfile = async () => {
         setSaving(true);
         setError('');
         try {
-            const res: any = await userApi.updateMe({ name, email });
+            const res: any = await userApi.updateMe({ name, email, secondaryEmail });
             updateUser(res.data);
             setSaved(true);
             setTimeout(() => setSaved(false), 2000);
@@ -153,6 +166,54 @@ export default function SettingsPage() {
         }
     };
 
+    const handleForgotRequest = async () => {
+        if (!user?.email) return;
+        setForgotLoading(true);
+        setForgotError('');
+        try {
+            await authApi.forgotPassword(user.email);
+            setForgotStep('verify');
+        } catch (err: any) {
+            setForgotError(err.message || 'Failed to send code');
+        } finally {
+            setForgotLoading(false);
+        }
+    };
+
+    const handleForgotVerify = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!user?.email) return;
+
+        if (forgotNewPassword !== forgotConfirmPassword) {
+            setForgotError('Passwords do not match');
+            return;
+        }
+
+        setForgotLoading(true);
+        setForgotError('');
+        try {
+            await authApi.resetPassword({ email: user.email, emailCode: forgotCode, newPassword: forgotNewPassword });
+            setForgotSuccess(true);
+            setTimeout(() => {
+                setForgotModalOpen(false);
+                setForgotSuccess(false);
+                setForgotStep('request');
+                setForgotCode('');
+                setForgotNewPassword('');
+                setForgotConfirmPassword('');
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmPassword('');
+                setPasswordSaved(true);
+                setTimeout(() => setPasswordSaved(false), 3000);
+            }, 3000);
+        } catch (err: any) {
+            setForgotError(err.message || 'Failed to reset password');
+        } finally {
+            setForgotLoading(false);
+        }
+    };
+
     const downloadRecoveryCodes = () => {
         if (!recoveryCodes) return;
         const text = `OpenVault Recovery Codes\nSave these in a secure location.\n\n${recoveryCodes.join('\n')}\n`;
@@ -243,6 +304,16 @@ export default function SettingsPage() {
                                         placeholder="john@example.com"
                                     />
                                 </div>
+                                <div className="md:col-span-2">
+                                    <label className="mb-1.5 block text-xs font-medium text-surface-500 dark:text-surface-400">Secondary Email (Optional, for backup verification)</label>
+                                    <input
+                                        type="email"
+                                        value={secondaryEmail}
+                                        onChange={(e) => setSecondaryEmail(e.target.value)}
+                                        className="input-field"
+                                        placeholder="backup@example.com"
+                                    />
+                                </div>
                             </div>
                             <div className="flex justify-end">
                                 <button onClick={handleSaveProfile} disabled={saving} className="btn-primary min-w-[120px] text-sm flex items-center justify-center gap-2">
@@ -313,6 +384,23 @@ export default function SettingsPage() {
                         <button type="submit" disabled={passwordSaving} className="btn-secondary w-full text-sm flex items-center justify-center gap-2">
                             {passwordSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : passwordSaved ? '✓ Changed' : 'Update Password'}
                         </button>
+
+                        <div className="text-center pt-2 border-t border-surface-200 dark:border-surface-700 mt-4">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setForgotModalOpen(true);
+                                    setForgotStep('request');
+                                    setForgotError('');
+                                    setForgotCode('');
+                                    setForgotNewPassword('');
+                                    setForgotConfirmPassword('');
+                                }}
+                                className="text-xs text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors"
+                            >
+                                Forgot your password?
+                            </button>
+                        </div>
                     </form>
                 </section>
 
@@ -507,6 +595,76 @@ export default function SettingsPage() {
                                 {mfaLoading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : 'Confirm'}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* Forgot Password Modal (Overlay) */}
+            {forgotModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="w-full max-w-md bg-white dark:bg-surface-800 rounded-2xl shadow-2xl p-6 relative">
+                        {forgotSuccess ? (
+                            <div className="text-center py-6">
+                                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/20 mb-6">
+                                    <Key className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+                                </div>
+                                <h3 className="text-xl font-bold text-surface-900 dark:text-white mb-2">Password Reset Successful</h3>
+                                <p className="text-surface-600 dark:text-surface-400 mb-6">Your password has been changed securely.</p>
+                            </div>
+                        ) : forgotStep === 'request' ? (
+                            <div>
+                                <h3 className="text-xl font-bold text-surface-900 dark:text-white mb-2">Reset Password</h3>
+                                <p className="text-sm text-surface-600 dark:text-surface-400 mb-6">
+                                    Are you sure you want to reset your password? We will send a verification code to <strong>{user?.email}</strong>.
+                                </p>
+                                {forgotError && <div className="mb-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10 p-3 rounded-lg">{forgotError}</div>}
+                                <div className="flex gap-3 mt-6">
+                                    <button onClick={() => setForgotModalOpen(false)} className="btn-secondary flex-1 text-sm">Cancel</button>
+                                    <button onClick={handleForgotRequest} disabled={forgotLoading} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
+                                        {forgotLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4" /> Send Code</>}
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div>
+                                <h3 className="text-xl font-bold text-surface-900 dark:text-white mb-2">Check your email</h3>
+                                <p className="text-sm text-surface-600 dark:text-surface-400 mb-6">
+                                    We sent a 6-digit code to <strong>{user?.email}</strong>.
+                                </p>
+                                {forgotError && <div className="mb-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10 p-3 rounded-lg">{forgotError}</div>}
+                                <form onSubmit={handleForgotVerify} className="space-y-4">
+                                    <div>
+                                        <label className="mb-1 block text-xs font-medium text-surface-700 dark:text-surface-300">Verification Code</label>
+                                        <div className="relative">
+                                            <ShieldCheck className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-400" />
+                                            <input type="text" value={forgotCode} onChange={(e) => setForgotCode(e.target.value)} className="input-field pl-10 text-center tracking-widest font-mono" placeholder="000000" maxLength={6} required autoFocus />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-xs font-medium text-surface-700 dark:text-surface-300">New Password</label>
+                                        <div className="relative">
+                                            <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-400" />
+                                            <input type={forgotShowPassword ? 'text' : 'password'} value={forgotNewPassword} onChange={(e) => setForgotNewPassword(e.target.value)} className="input-field pl-10 pr-10" placeholder="Min 8 characters" minLength={8} required />
+                                            <button type="button" onClick={() => setForgotShowPassword(!forgotShowPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 transition-colors">
+                                                {forgotShowPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-xs font-medium text-surface-700 dark:text-surface-300">Confirm Password</label>
+                                        <div className="relative">
+                                            <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-400" />
+                                            <input type={forgotShowPassword ? 'text' : 'password'} value={forgotConfirmPassword} onChange={(e) => setForgotConfirmPassword(e.target.value)} className="input-field pl-10" placeholder="Confirm password" minLength={8} required />
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-3 mt-6 pt-2">
+                                        <button type="button" onClick={() => setForgotModalOpen(false)} className="btn-secondary flex-1 text-sm">Cancel</button>
+                                        <button type="submit" disabled={forgotLoading || !forgotCode || !forgotNewPassword || !forgotConfirmPassword} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
+                                            {forgotLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reset Password'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

@@ -51,6 +51,7 @@ export async function userRoutes(app: FastifyInstance) {
                     avatarUrl: true,
                     role: true,
                     mfaEnabled: true,
+                    secondaryEmail: true,
                     storageQuota: true,
                     storageUsed: true,
                     createdAt: true,
@@ -102,6 +103,7 @@ export async function userRoutes(app: FastifyInstance) {
 
         if (input.name) updateData.name = input.name;
         if (input.avatarUrl !== undefined) updateData.avatarUrl = input.avatarUrl;
+        if (input.secondaryEmail !== undefined) updateData.secondaryEmail = input.secondaryEmail === '' ? null : input.secondaryEmail;
 
         // Ensure email uniqueness
         if (input.email && input.email !== currentUser.email) {
@@ -127,7 +129,7 @@ export async function userRoutes(app: FastifyInstance) {
         const user = await prisma.user.update({
             where: { id: request.userId },
             data: updateData,
-            select: { id: true, email: true, name: true, avatarUrl: true, role: true, mfaEnabled: true },
+            select: { id: true, email: true, name: true, avatarUrl: true, role: true, mfaEnabled: true, secondaryEmail: true },
         });
 
         return { success: true, data: user };

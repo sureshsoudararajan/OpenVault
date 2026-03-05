@@ -116,6 +116,11 @@ export const authApi = {
     enableMfa: (totpCode: string) => request('/auth/mfa/enable', { method: 'POST', body: { totpCode } }),
     regenerateMfa: (passwordConfirm: string, totpCode?: string) => request('/auth/mfa/regenerate', { method: 'POST', body: { passwordConfirm, totpCode } }),
     disableMfa: (passwordConfirm: string, totpCode?: string) => request('/auth/mfa/disable', { method: 'POST', body: { passwordConfirm, totpCode } }),
+    activate: (token: string) => request('/auth/activate', { method: 'POST', body: { token } }),
+    resendActivation: (email: string) => request('/auth/resend-activation', { method: 'POST', body: { email } }),
+    forgotPassword: (email: string) => request('/auth/forgot-password', { method: 'POST', body: { email } }),
+    resetPassword: (data: { email: string; emailCode: string; newPassword: string }) => request('/auth/reset-password', { method: 'POST', body: data }),
+    sendLoginCode: (email: string) => request('/auth/send-login-code', { method: 'POST', body: { email } }),
 };
 
 // ============================================
@@ -127,6 +132,7 @@ export const userApi = {
     updateMe: (data: {
         name?: string;
         email?: string;
+        secondaryEmail?: string;
         avatarUrl?: string;
         currentPassword?: string;
         newPassword?: string;

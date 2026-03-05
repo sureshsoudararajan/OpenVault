@@ -11,6 +11,7 @@ export default function RegisterPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [success, setSuccess] = useState(false);
     const setAuth = useAuthStore((s) => s.setAuth);
     const navigate = useNavigate();
 
@@ -20,15 +21,33 @@ export default function RegisterPage() {
         setLoading(true);
 
         try {
-            const res: any = await authApi.register({ email, password, name });
-            setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
-            navigate('/');
+            await authApi.register({ email, password, name });
+            setSuccess(true);
         } catch (err: any) {
             setError(err.message || 'Registration failed');
         } finally {
             setLoading(false);
         }
     };
+
+    if (success) {
+        return (
+            <div className="text-center animate-fade-in py-8">
+                <div className="mb-6 flex justify-center">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-500/20">
+                        <Mail className="h-8 w-8 text-brand-600 dark:text-brand-400" />
+                    </div>
+                </div>
+                <h2 className="text-2xl font-bold text-surface-900 dark:text-white mb-2">Check your email</h2>
+                <p className="text-surface-600 dark:text-surface-400 mb-8 max-w-sm mx-auto">
+                    We've sent an activation link to <span className="font-semibold text-surface-900 dark:text-white">{email}</span>. Please click the link to activate your account.
+                </p>
+                <Link to="/login" className="btn-primary w-full flex justify-center items-center gap-2">
+                    Back to login <ArrowRight className="h-4 w-4" />
+                </Link>
+            </div>
+        );
+    }
 
     return (
         <>
@@ -53,7 +72,7 @@ export default function RegisterPage() {
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className="input-field pl-10"
-                            placeholder="John Doe"
+                            placeholder="Suresh S"
                             required
                         />
                     </div>

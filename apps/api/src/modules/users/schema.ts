@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const updateUserSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name max 100 characters').optional(),
     email: z.string().email('Invalid email address').optional(),
+    secondaryEmail: z.union([z.string().email('Invalid email address'), z.literal('')]).optional(),
     avatarUrl: z.string().url('Invalid URL').optional(),
     currentPassword: z.string().min(8, 'Password must be at least 8 characters').optional(),
     newPassword: z.string().min(8, 'Password must be at least 8 characters').optional(),

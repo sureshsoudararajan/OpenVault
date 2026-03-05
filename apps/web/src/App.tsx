@@ -9,6 +9,9 @@ import TrashPage from './pages/TrashPage';
 import SharedPage from './pages/SharedPage';
 import SettingsPage from './pages/SettingsPage';
 import ShareLinkPage from './pages/ShareLinkPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import ActivatePage from './pages/ActivatePage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -32,6 +35,9 @@ export default function App() {
             <Route element={<GuestRoute><AuthLayout /></GuestRoute>}>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
+                <Route path="/activate" element={<ActivatePage />} />
             </Route>
 
             {/* Protected routes */}

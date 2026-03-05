@@ -10,6 +10,7 @@ import prisma from '../../db/index';
 import { loadConfig } from '@openvault/config';
 import { generateUrlSafeToken } from '@openvault/crypto';
 import type { RegisterInput, LoginInput } from './schema';
+import { sendActivationEmail, sendPasswordResetEmail, sendSecondaryVerificationCode } from './email.service';
 
 const config = loadConfig();
 
@@ -29,17 +30,25 @@ export async function registerUser(input: RegisterInput) {
         parallelism: 4,
     });
 
+    const activationToken = generateUrlSafeToken(64);
+    const activationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
     const user = await prisma.user.create({
         data: {
             email: input.email,
             passwordHash,
             name: input.name,
+            activationToken,
+            activationExpires,
+            isActivated: false
         },
         select: { id: true, email: true, name: true, role: true, mfaEnabled: true },
     });
 
-    const tokens = await createSession(user.id, user.email, user.role);
-    return { user, ...tokens };
+    const activationUrl = `${config.frontendUrl || 'http://localhost:5173'}/activate?token=${activationToken}`;
+    await sendActivationEmail(user.email, user.name, activationUrl);
+
+    return { user, message: 'Activation email sent' };
 }
 
 /**
@@ -56,33 +65,47 @@ export async function loginUser(input: LoginInput, ipAddress?: string, userAgent
         throw Object.assign(new Error('Invalid credentials'), { statusCode: 401, code: 'INVALID_CREDENTIALS' });
     }
 
+    if (!user.isActivated) {
+        throw Object.assign(new Error('Please activate your account before logging in.'), { statusCode: 403, code: 'ACCOUNT_NOT_ACTIVATED' });
+    }
+
     // Check MFA if enabled
     if (user.mfaEnabled && user.totpSecret) {
-        if (!input.totpCode) {
+        if (!input.totpCode && !input.emailCode) {
             throw Object.assign(new Error('MFA code required'), { statusCode: 403, code: 'MFA_REQUIRED' });
         }
 
         let isMfaValid = false;
 
-        // Try TOTP if it's potentially a 6-digit code
-        isMfaValid = authenticator.verify({ token: input.totpCode, secret: user.totpSecret });
+        // Try email code first (for users who lost their authenticator)
+        if (input.emailCode) {
+            if (user.emailCode === input.emailCode && user.emailCodeExpires && user.emailCodeExpires > new Date()) {
+                isMfaValid = true;
+                // Clear the used email code
+                await prisma.user.update({ where: { id: user.id }, data: { emailCode: null, emailCodeExpires: null } });
+            }
+        }
 
-        // Fallback to testing Recovery Backup codes
-        if (!isMfaValid && input.totpCode.length === 8) {
-            const recoveryCodes = await prisma.recoveryCode.findMany({
-                where: { userId: user.id, used: false }
-            });
+        // Try TOTP code
+        if (!isMfaValid && input.totpCode) {
+            isMfaValid = authenticator.verify({ token: input.totpCode, secret: user.totpSecret });
 
-            for (const record of recoveryCodes) {
-                const isMatch = await argon2.verify(record.codeHash, input.totpCode);
-                if (isMatch) {
-                    isMfaValid = true;
-                    // Mark this specific recovery code as exhausted
-                    await prisma.recoveryCode.update({
-                        where: { id: record.id },
-                        data: { used: true, usedAt: new Date() }
-                    });
-                    break;
+            // Fallback to recovery backup codes
+            if (!isMfaValid && input.totpCode.length === 8) {
+                const recoveryCodes = await prisma.recoveryCode.findMany({
+                    where: { userId: user.id, used: false }
+                });
+
+                for (const record of recoveryCodes) {
+                    const isMatch = await argon2.verify(record.codeHash, input.totpCode);
+                    if (isMatch) {
+                        isMfaValid = true;
+                        await prisma.recoveryCode.update({
+                            where: { id: record.id },
+                            data: { used: true, usedAt: new Date() }
+                        });
+                        break;
+                    }
                 }
             }
         }
@@ -355,4 +378,169 @@ function parseDuration(duration: string): number {
     };
 
     return value * (multipliers[unit] ?? 24 * 3600 * 1000);
+}
+
+export async function activateAccount(token: string) {
+    const user = await prisma.user.findFirst({
+        where: { activationToken: token, activationExpires: { gt: new Date() } }
+    });
+
+    if (!user) {
+        throw Object.assign(new Error('Invalid or expired activation token'), { statusCode: 400, code: 'INVALID_ACTIVATION' });
+    }
+
+    await prisma.user.update({
+        where: { id: user.id },
+        data: {
+            isActivated: true,
+            activationToken: null,
+            activationExpires: null
+        }
+    });
+
+    return { message: 'Account activated successfully' };
+}
+
+export async function resendActivation(email: string) {
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+        // Don't reveal if user exists
+        return { message: 'If that email is registered and not yet activated, a new activation link has been sent.' };
+    }
+
+    if (user.isActivated) {
+        return { message: 'Account is already activated. You can log in.' };
+    }
+
+    const activationToken = generateUrlSafeToken(64);
+    const activationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await prisma.user.update({
+        where: { id: user.id },
+        data: { activationToken, activationExpires }
+    });
+
+    const activationUrl = `${config.frontendUrl || 'http://localhost:5173'}/activate?token=${activationToken}`;
+    await sendActivationEmail(user.email, user.name, activationUrl);
+
+    return { message: 'If that email is registered and not yet activated, a new activation link has been sent.' };
+}
+
+export async function requestPasswordReset(email: string) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+        // Don't reveal if user exists
+        return { message: 'If that email exists, a verification code has been sent.' };
+    }
+
+    const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const emailCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await prisma.user.update({
+        where: { id: user.id },
+        data: {
+            emailCode,
+            emailCodeExpires,
+            resetPasswordToken: emailCode, // reuse this field to look up by code later
+            resetPasswordExpires: emailCodeExpires
+        }
+    });
+
+    await sendPasswordResetEmail(user.email, emailCode);
+
+    return { message: 'If that email exists, a verification code has been sent.' };
+}
+
+export async function sendSecondaryCodeForReset(token: string) {
+    const user = await prisma.user.findFirst({
+        where: {
+            resetPasswordToken: token,
+            resetPasswordExpires: { gt: new Date() }
+        }
+    });
+
+    if (!user) {
+        throw Object.assign(new Error('Invalid or expired reset token'), { statusCode: 400, code: 'INVALID_RESET_TOKEN' });
+    }
+
+    if (!user.mfaEnabled) {
+        throw Object.assign(new Error('Not applicable. Regular reset code already sent.'), { statusCode: 400, code: 'NOT_APPLICABLE' });
+    }
+
+    if (!user.secondaryEmail) {
+        throw Object.assign(new Error('No secondary email configured'), { statusCode: 400, code: 'NO_SECONDARY_EMAIL' });
+    }
+
+    const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const emailCodeExpires = new Date(Date.now() + 15 * 60 * 1000);
+
+    await prisma.user.update({
+        where: { id: user.id },
+        data: { emailCode, emailCodeExpires }
+    });
+
+    await sendSecondaryVerificationCode(user.secondaryEmail, emailCode);
+
+    return { message: 'Verification code sent to secondary email' };
+}
+
+import type { ResetPasswordInput } from './schema';
+export async function resetPassword(input: ResetPasswordInput) {
+    const user = await prisma.user.findFirst({
+        where: {
+            email: input.email,
+            emailCode: input.emailCode,
+            emailCodeExpires: { gt: new Date() }
+        }
+    });
+
+    if (!user) {
+        throw Object.assign(new Error('Invalid or expired verification code'), { statusCode: 400, code: 'INVALID_CODE' });
+    }
+
+    const passwordHash = await argon2.hash(input.newPassword, {
+        type: argon2.argon2id,
+        memoryCost: 65536,
+        timeCost: 3,
+        parallelism: 4,
+    });
+
+    await prisma.user.update({
+        where: { id: user.id },
+        data: {
+            passwordHash,
+            resetPasswordToken: null,
+            resetPasswordExpires: null,
+            emailCode: null,
+            emailCodeExpires: null,
+            sessions: { deleteMany: {} }
+        }
+    });
+
+    return { message: 'Password reset successfully' };
+}
+
+/**
+ * Send a login verification code via email for 2FA users who lost their authenticator.
+ */
+export async function sendLoginEmailCode(email: string) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || !user.mfaEnabled) {
+        // Don't reveal if user exists or MFA status
+        return { message: 'If applicable, a verification code has been sent to your email.' };
+    }
+
+    const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const emailCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await prisma.user.update({
+        where: { id: user.id },
+        data: { emailCode, emailCodeExpires }
+    });
+
+    const { sendLoginVerificationCode } = await import('./email.service');
+    await sendLoginVerificationCode(user.email, emailCode);
+
+    return { message: 'If applicable, a verification code has been sent to your email.' };
 }
