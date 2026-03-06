@@ -4,14 +4,23 @@ services:
     image: postgres:16-alpine
     container_name: openvault-postgres
     restart: unless-stopped
-    ports:
-      - "5432:5432"
+    # ports:
+    #   - "5432:5432" # Removed for production
     environment:
       POSTGRES_USER: openvault
       POSTGRES_PASSWORD: openvault_secret
       POSTGRES_DB: openvault
     volumes:
       - pgdata:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U openvault"]
       interval: 10s
@@ -23,10 +32,19 @@ services:
     image: redis:7-alpine
     container_name: openvault-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    # ports:
+    #   - "6379:6379" # Removed for production
     volumes:
       - redis-data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -40,13 +58,22 @@ services:
     restart: unless-stopped
     ports:
       - "9000:9000"
-      - "9001:9001"
+      # - "9001:9001" # Removed for production
     environment:
       MINIO_ROOT_USER: openvault_minio
       MINIO_ROOT_PASSWORD: openvault_minio_secret
     volumes:
       - minio-data:/data
     command: server /data --console-address ":9001"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
@@ -58,13 +85,22 @@ services:
     image: getmeili/meilisearch:v1.6
     container_name: openvault-meili
     restart: unless-stopped
-    ports:
-      - "7700:7700"
+    # ports:
+    #   - "7700:7700" # Removed for production
     environment:
       MEILI_MASTER_KEY: openvault_meili_master_key
-      MEILI_ENV: development
+      MEILI_ENV: production
     volumes:
       - meili-data:/meili_data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ---- Backend API ----
   api:

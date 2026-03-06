@@ -48,9 +48,44 @@ export async function initWorkers(config: AppConfig): Promise<void> {
                 case 'compress':
                     // TODO: Implement file compression
                     break;
-                case 'extract_metadata':
-                    // TODO: Extract file metadata (EXIF, document properties, etc.)
+                case 'extract_metadata': {
+                    const file = await prisma.file.findUnique({ where: { id: fileId } });
+                    if (!file) break;
+
+                    const isImage = file.mimeType.startsWith('image/');
+                    if (!isImage) break;
+
+                    try {
+                        const fileStream = await getObject(config.minio.bucket, file.storageKey);
+                        const chunks: Buffer[] = [];
+                        for await (const chunk of fileStream as any) {
+                            chunks.push(chunk);
+                        }
+                        const buffer = Buffer.concat(chunks);
+                        const metadata = await sharp(buffer).metadata();
+
+                        // Sanitize metadata to be JSON-safe (remove large/binary buffers like 'exif' if any)
+                        const sanitizedMetadata = {
+                            format: metadata.format,
+                            width: metadata.width,
+                            height: metadata.height,
+                            space: metadata.space,
+                            channels: metadata.channels,
+                            depth: metadata.depth,
+                            density: metadata.density,
+                            hasAlpha: metadata.hasAlpha,
+                        };
+
+                        await prisma.file.update({
+                            where: { id: fileId },
+                            data: { metadata: sanitizedMetadata as any },
+                        });
+                        console.log(`✅ Extracted metadata for file ${fileId}`);
+                    } catch (err) {
+                        console.error(`❌ Failed to extract metadata for ${fileId}:`, err);
+                    }
                     break;
+                }
                 default:
                     console.warn(`Unknown file processing action: ${action}`);
             }
@@ -164,8 +199,37 @@ export async function initWorkers(config: AppConfig): Promise<void> {
             const { fileId, sha256Hash, userId } = job.data;
             console.log(`🔍 Running dedup scan for file ${fileId}`);
 
-            // TODO: Check for duplicate files by hash
-            // Mark duplicates in the database
+            // Find other files with the same hash belonging to the same user
+            const duplicates = await prisma.file.findMany({
+                where: {
+                    sha256Hash: sha256Hash,
+                    userId: userId,
+                    id: { not: fileId },
+                    isTrashed: false,
+                },
+                select: { id: true, name: true },
+            });
+
+            if (duplicates.length > 0) {
+                console.log(`👯 Found ${duplicates.length} duplicates for file ${fileId} (hash: ${sha256Hash})`);
+
+                // Track in activity log
+                await prisma.activityLog.create({
+                    data: {
+                        userId: userId,
+                        action: 'dedup_found',
+                        resourceId: fileId,
+                        resourceType: 'file',
+                        metadata: {
+                            duplicateCount: duplicates.length,
+                            duplicateIds: duplicates.map(d => d.id),
+                            hash: sha256Hash
+                        },
+                    }
+                });
+            } else {
+                console.log(`✅ No duplicates found for file ${fileId}`);
+            }
         },
         { connection: connection as any, concurrency: 1 }
     );

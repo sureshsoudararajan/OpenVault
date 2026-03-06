@@ -99,6 +99,7 @@ model File {
   storageKey      String    @map("storage_key") @db.VarChar(500)
   encryptionKeyId String?   @map("encryption_key_id") @db.Uuid
   thumbnailKey    String?   @map("thumbnail_key") @db.VarChar(500)
+  metadata        Json?     @db.JsonB
   currentVersion  Int       @default(1) @map("current_version")
   isTrashed       Boolean   @default(false) @map("is_trashed")
   trashedAt       DateTime? @map("trashed_at")
