@@ -6,11 +6,12 @@ import FilePreview from '../components/FilePreview';
 import Thumbnail from '../components/Thumbnail';
 import ShareDialog from '../components/ShareDialog';
 import DetailsDialog from '../components/DetailsDialog';
+import TagDialog from '../components/TagDialog';
 import {
     Grid3X3, List, FolderPlus, Upload, ChevronRight,
     FileText, Image, Film, FileArchive, File, MoreVertical,
     Download, Pencil, Trash2, Share2, FolderOpen, Eye, Copy, Info, Music,
-    Clipboard, CheckSquare, X
+    Clipboard, CheckSquare, X, Tag as TagIcon, Palette
 } from 'lucide-react';
 
 interface FileItem {
@@ -84,8 +85,23 @@ export default function DashboardPage() {
     const [renameValue, setRenameValue] = useState('');
 
     // Share & Details
-    const [shareTarget, setShareTarget] = useState<{ id: string; type: 'file' | 'folder'; name: string } | null>(null);
     const [detailsTarget, setDetailsTarget] = useState<{ id: string; type: 'file' | 'folder'; name: string } | null>(null);
+    const [shareTarget, setShareTarget] = useState<{ id: string; type: 'file' | 'folder'; name: string } | null>(null);
+    const [tagTarget, setTagTarget] = useState<FileItem | null>(null);
+    const [showColorPicker, setShowColorPicker] = useState(false);
+
+    const PRESET_COLORS = [
+        { name: 'Default', value: null },
+        { name: 'Red', value: '#EF4444' },
+        { name: 'Orange', value: '#F97316' },
+        { name: 'Yellow', value: '#F59E0B' },
+        { name: 'Green', value: '#10B981' },
+        { name: 'Blue', value: '#3B82F6' },
+        { name: 'Indigo', value: '#6366F1' },
+        { name: 'Purple', value: '#8B5CF6' },
+        { name: 'Pink', value: '#EC4899' },
+        { name: 'Slate', value: '#64748B' },
+    ];
 
     // Drag and drop
     const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
@@ -913,6 +929,57 @@ export default function DashboardPage() {
                                     <Pencil className="h-4 w-4" /> Rename
                                 </button>
 
+                                {/* File-only: Tags */}
+                                {contextMenu.type === 'file' && (
+                                    <button
+                                        onClick={() => {
+                                            const file = files.find(f => f.id === contextMenu.id);
+                                            if (file) setTagTarget(file);
+                                            closeContextMenu();
+                                        }}
+                                        className="dropdown-item w-full"
+                                    >
+                                        <TagIcon className="h-4 w-4" /> Manage Tags
+                                    </button>
+                                )}
+
+                                {/* Folder-only: Color */}
+                                {contextMenu.type === 'folder' && (
+                                    <div className="relative group/color">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setShowColorPicker(!showColorPicker); }}
+                                            className="dropdown-item w-full flex items-center justify-between"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <Palette className="h-4 w-4" /> Change Color
+                                            </div>
+                                            <ChevronRight className="h-3 w-3 opacity-50" />
+                                        </button>
+
+                                        {showColorPicker && (
+                                            <div className="absolute left-full top-0 ml-1 w-40 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 py-1.5 shadow-xl animate-scale-in">
+                                                <div className="grid grid-cols-5 gap-1.5 px-2 py-1">
+                                                    {PRESET_COLORS.map(color => (
+                                                        <button
+                                                            key={color.name}
+                                                            title={color.name}
+                                                            onClick={async () => {
+                                                                await folderApi.updateColor(contextMenu.id, color.value);
+                                                                closeContextMenu();
+                                                                loadContent();
+                                                            }}
+                                                            className="h-6 w-6 rounded-full border border-black/10 transition-transform hover:scale-110"
+                                                            style={{ backgroundColor: color.value || 'transparent' }}
+                                                        >
+                                                            {!color.value && <X className="h-3 w-3 mx-auto text-surface-400" />}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* Copy */}
                                 <button onClick={handleCopy} className="dropdown-item w-full">
                                     <Copy className="h-4 w-4" /> Copy
@@ -981,6 +1048,21 @@ export default function DashboardPage() {
                     onClose={() => setPreviewIndex(null)}
                     onPrev={previewIndex > 0 ? () => setPreviewIndex(previewIndex - 1) : undefined}
                     onNext={previewIndex < files.length - 1 ? () => setPreviewIndex(previewIndex + 1) : undefined}
+                />
+            )}
+
+            {/* Tag Dialog */}
+            {tagTarget && (
+                <TagDialog
+                    fileId={tagTarget.id}
+                    fileName={tagTarget.name}
+                    initialTags={tagTarget.fileTags || []}
+                    onClose={() => setTagTarget(null)}
+                    onTagsUpdated={() => {
+                        loadContent();
+                        // Update the target object so the dialog reflects changes if it stayed open
+                        // Actually we reload content which will update files array
+                    }}
                 />
             )}
         </div>

@@ -2,8 +2,13 @@ import { Queue, Worker, type Job } from 'bullmq';
 import { loadConfig, type AppConfig } from '@openvault/config';
 import IORedis from 'ioredis';
 import sharp from 'sharp';
+import ffmpeg from 'fluent-ffmpeg';
 import prisma from '../db/index';
 import { getObject, uploadObject } from '../storage/minio';
+import { Stream, PassThrough } from 'stream';
+import { promises as fs } from 'fs';
+import path from 'path';
+import os from 'os';
 
 // ---- Queue Definitions ----
 export const QUEUE_NAMES = {
@@ -60,22 +65,63 @@ export async function initWorkers(config: AppConfig): Promise<void> {
             const { fileId, mimeType, storageKey } = job.data;
             console.log(`🖼️  Generating thumbnail for ${fileId} (${mimeType})`);
 
-            if (!mimeType.startsWith('image/')) {
-                console.log(`⏭️  Skipping thumbnail for non-image ${fileId}`);
+            const isImage = mimeType.startsWith('image/');
+            const isVideo = mimeType.startsWith('video/');
+
+            if (!isImage && !isVideo) {
+                console.log(`⏭️  Skipping thumbnail for non-supported type ${fileId} (${mimeType})`);
                 return;
             }
 
-            try {
-                // 1. Download original file from MinIO
-                const fileStream = await getObject(appConfig.minio.bucket, storageKey);
-                const chunks: Buffer[] = [];
-                for await (const chunk of fileStream as any) {
-                    chunks.push(chunk);
-                }
-                const originalBuffer = Buffer.concat(chunks);
+            let tempVideoPath: string | null = null;
+            let tempFramePath: string | null = null;
 
-                // 2. Generate thumbnail with sharp
-                const thumbnailBuffer = await sharp(originalBuffer)
+            try {
+                let frameBuffer: Buffer;
+
+                if (isImage) {
+                    // 1. Download original image
+                    const fileStream = await getObject(appConfig.minio.bucket, storageKey);
+                    const chunks: Buffer[] = [];
+                    for await (const chunk of fileStream as any) {
+                        chunks.push(chunk);
+                    }
+                    frameBuffer = Buffer.concat(chunks);
+                } else {
+                    // 1. For videos, we need to extract a frame. 
+                    // FFMPEG works best with files, so we'll download to a temp file.
+                    const fileStream = await getObject(appConfig.minio.bucket, storageKey);
+
+                    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ov-thumb-'));
+                    tempVideoPath = path.join(tempDir, 'input_video');
+                    tempFramePath = path.join(tempDir, 'frame.jpg');
+
+                    // Write stream to temp file
+                    const writeStream = (await import('fs')).createWriteStream(tempVideoPath);
+                    await new Promise((resolve, reject) => {
+                        (fileStream as Stream).pipe(writeStream);
+                        writeStream.on('finish', resolve);
+                        writeStream.on('error', reject);
+                    });
+
+                    // Extract frame at 1s mark
+                    await new Promise((resolve, reject) => {
+                        ffmpeg(tempVideoPath!)
+                            .screenshots({
+                                timestamps: [1],
+                                folder: tempDir,
+                                filename: 'frame.jpg',
+                                size: '640x?'
+                            })
+                            .on('end', resolve)
+                            .on('error', reject);
+                    });
+
+                    frameBuffer = await fs.readFile(tempFramePath);
+                }
+
+                // 2. Generate optimized thumbnail with sharp
+                const thumbnailBuffer = await sharp(frameBuffer)
                     .resize(256, 256, { fit: 'cover' })
                     .webp({ quality: 80 })
                     .toBuffer();
@@ -96,6 +142,16 @@ export async function initWorkers(config: AppConfig): Promise<void> {
             } catch (error) {
                 console.error(`❌ Failed to generate thumbnail for ${fileId}:`, error);
                 throw error;
+            } finally {
+                // Cleanup temp files
+                if (tempVideoPath) {
+                    try {
+                        const dir = path.dirname(tempVideoPath);
+                        await fs.rm(dir, { recursive: true, force: true });
+                    } catch (e) {
+                        console.error('Failed to cleanup temp files:', e);
+                    }
+                }
             }
         },
         { connection, concurrency: 2 }
