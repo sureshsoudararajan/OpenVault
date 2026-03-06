@@ -464,11 +464,16 @@ function DashboardPage() {
                                                         style={folder.color ? { color: folder.color } : undefined}
                                                     />
                                                 </div>
-                                                {selectedFolders.has(folder.id) && (
-                                                    <div className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-indigo-500 rounded-md flex items-center justify-center">
-                                                        <CheckSquare className="h-3 w-3 text-white" />
-                                                    </div>
-                                                )}
+                                                {/* Selection badge */}
+                                                <div
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        toggleFolderSelection(folder.id);
+                                                    }}
+                                                    className={`absolute -top-1.5 -right-1.5 h-5 w-5 rounded-md flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity ${selectedFolders.has(folder.id) ? 'bg-indigo-500 opacity-100' : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600'}`}
+                                                >
+                                                    {selectedFolders.has(folder.id) && <CheckSquare className="h-3 w-3 text-white" />}
+                                                </div>
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 {renaming?.id === folder.id ? (
@@ -525,11 +530,15 @@ function DashboardPage() {
                                                     )}
 
                                                     {/* Selection badge */}
-                                                    {selectedFiles.has(file.id) && (
-                                                        <div className="absolute top-3 left-3 h-6 w-6 rounded-md bg-indigo-500 flex items-center justify-center">
-                                                            <CheckSquare className="h-3.5 w-3.5 text-white" />
-                                                        </div>
-                                                    )}
+                                                    <div
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            toggleFileSelection(file.id);
+                                                        }}
+                                                        className={`absolute top-3 left-3 h-6 w-6 rounded-md flex items-center justify-center cursor-pointer transition-opacity opacity-0 group-hover:opacity-100 ${selectedFiles.has(file.id) ? 'bg-indigo-500 opacity-100' : 'bg-white/80 dark:bg-gray-900/80 border border-gray-300 dark:border-gray-600'}`}
+                                                    >
+                                                        {selectedFiles.has(file.id) && <CheckSquare className="h-3.5 w-3.5 text-white" />}
+                                                    </div>
 
                                                     {/* More button */}
                                                     <button
@@ -588,7 +597,13 @@ function DashboardPage() {
                                                 onContextMenu={(e) => handleFileContextMenu(e, file, index)}
                                             >
                                                 {/* Checkbox area */}
-                                                <div className="flex-shrink-0">
+                                                <div
+                                                    className="flex-shrink-0 cursor-pointer p-1"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        toggleFileSelection(file.id);
+                                                    }}
+                                                >
                                                     {selectedFiles.has(file.id) ? (
                                                         <div className="h-6 w-6 bg-indigo-500 rounded-md flex items-center justify-center">
                                                             <CheckSquare className="h-3.5 w-3.5 text-white" />
