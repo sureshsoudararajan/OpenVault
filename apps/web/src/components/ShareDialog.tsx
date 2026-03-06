@@ -16,10 +16,94 @@ interface ShareDialogProps {
 // Convert a datetime-local value (local time) to a proper ISO string with timezone offset
 function localToIso(localDatetime: string): string {
     if (!localDatetime) return '';
-    // new Date() on a datetime-local string treats it as local time — toISOString() converts to UTC.
-    // This is correct behavior — timezones are handled properly by the JS engine.
     return new Date(localDatetime).toISOString();
 }
+
+// ─── DateTimePicker ──────────────────────────────────────────────────────────
+// Converts between a 'datetime-local' string (YYYY-MM-DDTHH:mm) used internally
+// and user-facing date + hour + minute + AM/PM inputs.
+function DateTimePicker({ value, onChange, label, icon }: {
+    value: string;
+    onChange: (v: string) => void;
+    label: string;
+    icon?: React.ReactNode;
+}) {
+    // Parse value
+    const date = value ? value.split('T')[0] : '';
+    const timePart = value ? value.split('T')[1] || '00:00' : '00:00';
+    const [h24, m] = timePart.split(':').map(Number);
+    const ampm = h24 >= 12 ? 'PM' : 'AM';
+    const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
+    const mins = m || 0;
+
+    const update = (newDate: string, newH12: number, newMins: number, newAmpm: string) => {
+        if (!newDate) { onChange(''); return; }
+        let h = newH12 % 12;
+        if (newAmpm === 'PM') h += 12;
+        const padded = `${String(h).padStart(2, '0')}:${String(newMins).padStart(2, '0')}`;
+        onChange(`${newDate}T${padded}`);
+    };
+
+    return (
+        <div>
+            <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-surface-500 dark:text-surface-400">
+                {icon} {label}
+            </label>
+            <div className="flex gap-2 items-center">
+                {/* Date */}
+                <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => update(e.target.value, h12, mins, ampm)}
+                    className="input-field text-sm flex-1"
+                />
+                {/* Time row */}
+                <div className="flex items-center gap-1 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 px-2 py-1.5">
+                    {/* Hour */}
+                    <select
+                        value={h12}
+                        onChange={(e) => update(date, Number(e.target.value), mins, ampm)}
+                        className="bg-transparent text-sm text-surface-900 dark:text-white focus:outline-none"
+                    >
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+                            <option key={h} value={h}>{String(h).padStart(2, '0')}</option>
+                        ))}
+                    </select>
+                    <span className="text-surface-400 font-bold text-sm">:</span>
+                    {/* Minute */}
+                    <select
+                        value={mins}
+                        onChange={(e) => update(date, h12, Number(e.target.value), ampm)}
+                        className="bg-transparent text-sm text-surface-900 dark:text-white focus:outline-none"
+                    >
+                        {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((min) => (
+                            <option key={min} value={min}>{String(min).padStart(2, '0')}</option>
+                        ))}
+                    </select>
+                    {/* AM/PM */}
+                    <select
+                        value={ampm}
+                        onChange={(e) => update(date, h12, mins, e.target.value)}
+                        className="bg-transparent text-sm font-semibold text-brand-600 dark:text-brand-400 focus:outline-none"
+                    >
+                        <option value="AM">AM</option>
+                        <option value="PM">PM</option>
+                    </select>
+                </div>
+                {/* Clear */}
+                {value && (
+                    <button
+                        onClick={() => onChange('')}
+                        type="button"
+                        className="text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 text-lg leading-none px-1"
+                        title="Clear"
+                    >×</button>
+                )}
+            </div>
+        </div>
+    );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 type Tab = 'link' | 'email' | 'manage';
 
@@ -255,30 +339,20 @@ export default function ShareDialog({ resourceId, resourceType, resourceName, on
                                     </div>
 
                                     {/* Opens At */}
-                                    <div>
-                                        <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-surface-500 dark:text-surface-400">
-                                            <CalendarClock className="h-3.5 w-3.5" /> Opens at (optional)
-                                        </label>
-                                        <input
-                                            type="datetime-local"
-                                            value={opensAt}
-                                            onChange={(e) => setOpensAt(e.target.value)}
-                                            className="input-field text-sm text-surface-900 dark:text-white"
-                                        />
-                                    </div>
+                                    <DateTimePicker
+                                        label="Opens at (optional)"
+                                        icon={<CalendarClock className="h-3.5 w-3.5" />}
+                                        value={opensAt}
+                                        onChange={setOpensAt}
+                                    />
 
                                     {/* Expires At */}
-                                    <div>
-                                        <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-surface-500 dark:text-surface-400">
-                                            <Clock className="h-3.5 w-3.5" /> Expires at (optional)
-                                        </label>
-                                        <input
-                                            type="datetime-local"
-                                            value={expiresAt}
-                                            onChange={(e) => setExpiresAt(e.target.value)}
-                                            className="input-field text-sm text-surface-900 dark:text-white"
-                                        />
-                                    </div>
+                                    <DateTimePicker
+                                        label="Expires at (optional)"
+                                        icon={<Clock className="h-3.5 w-3.5" />}
+                                        value={expiresAt}
+                                        onChange={setExpiresAt}
+                                    />
 
                                     {/* Max Downloads */}
                                     <div>
