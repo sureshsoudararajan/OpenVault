@@ -1,17 +1,20 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFileManagerStore } from '../stores/fileManagerStore';
-import { fileApi, folderApi, searchApi } from '../services/api';
+import { fileApi, folderApi, searchApi, tagApi } from '../services/api';
 import FilePreview from '../components/FilePreview';
 import Thumbnail from '../components/Thumbnail';
 import ShareDialog from '../components/ShareDialog';
 import DetailsDialog from '../components/DetailsDialog';
 import TagDialog from '../components/TagDialog';
+import UploadProgressPanel from '../components/UploadProgressPanel';
+import { uploadFiles } from '../services/uploadManager';
 import {
     Grid3X3, List, FolderPlus, Upload, ChevronRight,
     FileText, Image, Film, FileArchive, File, MoreVertical,
     Download, Pencil, Trash2, Share2, FolderOpen, Eye, Copy, Info, Music,
-    Clipboard, CheckSquare, X, Tag as TagIcon, Palette
+    Clipboard, CheckSquare, X, Tag as TagIcon, Palette,
+    AlignLeft, Table, Presentation
 } from 'lucide-react';
 
 interface FileItem {
@@ -41,13 +44,33 @@ interface ContextMenuState {
     fileIndex?: number;
 }
 
-const getFileIcon = (mimeType: string) => {
-    if (mimeType.startsWith('image/')) return <Image className="h-8 w-8 text-pink-500 dark:text-pink-400" />;
-    if (mimeType.startsWith('video/')) return <Film className="h-8 w-8 text-purple-500 dark:text-purple-400" />;
-    if (mimeType.startsWith('audio/')) return <Music className="h-8 w-8 text-cyan-500 dark:text-cyan-400" />;
-    if (mimeType.includes('pdf')) return <FileText className="h-8 w-8 text-red-500 dark:text-red-400" />;
-    if (mimeType.includes('zip') || mimeType.includes('archive')) return <FileArchive className="h-8 w-8 text-amber-500 dark:text-amber-400" />;
-    return <File className="h-8 w-8 text-gray-500 dark:text-gray-400" />;
+const getFileIcon = (mimeType: string, className = "h-8 w-8") => {
+    if (mimeType.startsWith('image/')) return <Image className={`${className} text-pink-500 dark:text-pink-400`} />;
+    if (mimeType.startsWith('video/')) return <Film className={`${className} text-purple-500 dark:text-purple-400`} />;
+    if (mimeType.startsWith('audio/')) return <Music className={`${className} text-cyan-500 dark:text-cyan-400`} />;
+    if (mimeType.includes('pdf')) return <FileText className={`${className} text-red-500 dark:text-red-400`} />;
+    if (mimeType.includes('zip') || mimeType.includes('archive')) return <FileArchive className={`${className} text-amber-500 dark:text-amber-400`} />;
+
+    // Word Documents
+    if (mimeType.includes('wordprocessingml.document') || mimeType.includes('msword') || mimeType.includes('vnd.oasis.opendocument.text')) {
+        return <AlignLeft className={`${className} text-blue-600 dark:text-blue-400`} />;
+    }
+
+    // Excel Documents
+    if (mimeType.includes('spreadsheetml.sheet') || mimeType.includes('ms-excel') || mimeType.includes('vnd.oasis.opendocument.spreadsheet') || mimeType.includes('csv')) {
+        return <Table className={`${className} text-green-600 dark:text-green-400`} />;
+    }
+
+    // PowerPoint Documents
+    if (mimeType.includes('presentationml.presentation') || mimeType.includes('ms-powerpoint') || mimeType.includes('vnd.oasis.opendocument.presentation')) {
+        return <Presentation className={`${className} text-orange-600 dark:text-orange-400`} />;
+    }
+
+    if (mimeType.startsWith('text/')) {
+        return <FileText className={`${className} text-gray-500 dark:text-gray-400`} />;
+    }
+
+    return <File className={`${className} text-gray-500 dark:text-gray-400`} />;
 };
 
 const formatSize = (bytes: number) => {
@@ -68,7 +91,7 @@ function DashboardPage() {
         viewMode, setViewMode, setCurrentFolderId, searchQuery,
         selectedFiles, selectedFolders, toggleFileSelection, toggleFolderSelection,
         selectAllFiles, clearSelection, clipboard,
-        setClipboard, clearClipboard
+        setClipboard, clearClipboard, selectedTag, setSelectedTag
     } = useFileManagerStore();
 
     const [files, setFiles] = useState<FileItem[]>([]);
@@ -114,6 +137,11 @@ function DashboardPage() {
                 setFiles(searchRes.data || []);
                 setFolders([]);
                 setBreadcrumbs([{ id: null, name: `Search: "${searchQuery}"` }]);
+            } else if (selectedTag) {
+                const tagFilesRes: any = await tagApi.getFiles(selectedTag.id);
+                setFiles(tagFilesRes.data || []);
+                setFolders([]);
+                setBreadcrumbs([{ id: null, name: `Tag: ${selectedTag.name}` }]);
             } else {
                 const [filesRes, foldersRes] = await Promise.all([
                     fileApi.list(folderId),
@@ -124,6 +152,9 @@ function DashboardPage() {
                 const crumbs: { id: string | null; name: string }[] = [{ id: null, name: 'My Files' }];
                 if (folderId) {
                     const folderRes: any = await folderApi.get(folderId);
+                    if (folderRes.data?.ancestors?.length > 0) {
+                        crumbs.push(...folderRes.data.ancestors);
+                    }
                     crumbs.push({ id: folderId, name: folderRes.data?.name || 'Folder' });
                 }
                 setBreadcrumbs(crumbs);
@@ -133,13 +164,13 @@ function DashboardPage() {
         } finally {
             setLoading(false);
         }
-    }, [folderId, searchQuery]);
+    }, [folderId, searchQuery, selectedTag]);
 
     useEffect(() => {
         setCurrentFolderId(folderId || null);
         const timeout = setTimeout(() => { loadContent(); }, searchQuery ? 300 : 0);
         return () => clearTimeout(timeout);
-    }, [folderId, loadContent, setCurrentFolderId, searchQuery]);
+    }, [folderId, loadContent, setCurrentFolderId, searchQuery, selectedTag]);
 
     // Keyboard shortcuts
     useEffect(() => {
@@ -176,7 +207,10 @@ function DashboardPage() {
         if (renaming?.id === id) return;
         if (e.ctrlKey || e.metaKey) { e.preventDefault(); if (type === 'file') toggleFileSelection(id); else toggleFolderSelection(id); return; }
         clearSelection();
-        if (type === 'folder') navigate(`/folder/${id}`);
+        if (type === 'folder') {
+            if (selectedTag) setSelectedTag(null);
+            navigate(`/folder/${id}`);
+        }
         else if (fileIndex !== undefined) setPreviewIndex(fileIndex);
     };
 
@@ -189,8 +223,12 @@ function DashboardPage() {
 
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const fileList = e.target.files; if (!fileList?.length) return;
-        for (const file of Array.from(fileList)) { const formData = new FormData(); formData.append('file', file); if (folderId) formData.append('folderId', folderId); try { await fileApi.upload(formData); } catch (err) { console.error('Upload failed:', err); } }
-        loadContent();
+        // Reset input so same file can be picked again
+        e.target.value = '';
+        await uploadFiles(fileList, {
+            folderId: folderId || null,
+            onComplete: () => loadContent(),
+        });
     };
 
     const handleDelete = async () => { if (!contextMenu) return; try { if (contextMenu.type === 'file') await fileApi.delete(contextMenu.id); else await folderApi.delete(contextMenu.id); loadContent(); } catch (err) { console.error('Delete failed:', err); } closeContextMenu(); };
@@ -217,7 +255,9 @@ function DashboardPage() {
         const openvaultData = e.dataTransfer.getData('application/openvault');
         if (openvaultData) { try { const item = JSON.parse(openvaultData); if (item.id === targetFolderId) return; if (item.type === 'file') await fileApi.move(item.id, targetFolderId); else await folderApi.move(item.id, targetFolderId); loadContent(); } catch (err) { console.error('Move failed:', err); } return; }
         const droppedFiles = e.dataTransfer.files;
-        if (droppedFiles.length > 0) { for (const file of Array.from(droppedFiles)) { const formData = new FormData(); formData.append('file', file); formData.append('folderId', targetFolderId); try { await fileApi.upload(formData); } catch (err) { console.error('Upload failed:', err); } } loadContent(); }
+        if (droppedFiles.length > 0) {
+            await uploadFiles(droppedFiles, { folderId: targetFolderId, onComplete: () => loadContent() });
+        }
     };
     const handleDragEnd = () => setDragOverFolderId(null);
 
@@ -227,8 +267,10 @@ function DashboardPage() {
     const handlePageDrop = async (e: React.DragEvent) => {
         e.preventDefault(); setShowDropOverlay(false); dropOverlayCounter.current = 0;
         const droppedFiles = e.dataTransfer.files; if (!droppedFiles.length) return;
-        for (const file of Array.from(droppedFiles)) { const formData = new FormData(); formData.append('file', file); if (folderId) formData.append('folderId', folderId); try { await fileApi.upload(formData); } catch (err) { console.error('Upload failed:', err); } }
-        loadContent();
+        await uploadFiles(droppedFiles, {
+            folderId: folderId || null,
+            onComplete: () => loadContent(),
+        });
     };
 
     const getMenuPosition = (x: number, y: number) => {
@@ -317,7 +359,10 @@ function DashboardPage() {
                                 <span key={i} className="flex items-center">
                                     {i > 0 && <ChevronRight className="mx-1 h-4 w-4 text-gray-400 dark:text-gray-600" />}
                                     <button
-                                        onClick={() => crumb.id ? navigate(`/folder/${crumb.id}`) : navigate('/')}
+                                        onClick={() => {
+                                            if (selectedTag) setSelectedTag(null);
+                                            crumb.id ? navigate(`/folder/${crumb.id}`) : navigate('/');
+                                        }}
                                         className={`px-2 py-1 rounded-lg transition-colors ${i === breadcrumbs.length - 1
                                             ? 'text-2xl font-bold text-gray-900 dark:text-white'
                                             : 'text-lg font-medium text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
@@ -471,11 +516,11 @@ function DashboardPage() {
                                             >
                                                 {/* Thumbnail area */}
                                                 <div className="aspect-[4/3] w-full bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center overflow-hidden relative">
-                                                    {file.thumbnailKey ? (
+                                                    {file.thumbnailKey && (file.mimeType.startsWith('image/') || file.mimeType.startsWith('video/')) ? (
                                                         <Thumbnail fileId={file.id} mimeType={file.mimeType} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
                                                     ) : (
                                                         <div className="opacity-40 group-hover:opacity-70 transition-opacity">
-                                                            {React.cloneElement(getFileIcon(file.mimeType) as React.ReactElement, { size: 48, className: '!h-12 !w-12' })}
+                                                            {getFileIcon(file.mimeType, "!h-12 !w-12")}
                                                         </div>
                                                     )}
 
@@ -555,7 +600,7 @@ function DashboardPage() {
 
                                                 {/* Icon / Thumbnail */}
                                                 <div className="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-gray-50 dark:bg-gray-800 overflow-hidden">
-                                                    {file.thumbnailKey ? (
+                                                    {file.thumbnailKey && (file.mimeType.startsWith('image/') || file.mimeType.startsWith('video/')) ? (
                                                         <Thumbnail fileId={file.id} mimeType={file.mimeType} className="h-full w-full object-cover" />
                                                     ) : (
                                                         <div className="scale-75 opacity-60">{getFileIcon(file.mimeType)}</div>
@@ -636,7 +681,7 @@ function DashboardPage() {
             {contextMenu && (
                 <>
                     <div className="fixed inset-0 z-[120]" onClick={closeContextMenu} onContextMenu={(e) => { e.preventDefault(); closeContextMenu(); }} />
-                    <div className="context-menu" style={getMenuPosition(contextMenu.x, contextMenu.y)}>
+                    <div className="context-menu z-[130]" style={getMenuPosition(contextMenu.x, contextMenu.y)}>
                         {contextMenu.type === 'background' ? (
                             <div>
                                 {clipboard.length > 0 && (
@@ -733,6 +778,7 @@ function DashboardPage() {
                 />
             )}
             {tagTarget && <TagDialog fileId={tagTarget.id} fileName={tagTarget.name} initialTags={tagTarget.fileTags || []} onClose={() => setTagTarget(null)} onTagsUpdated={() => loadContent()} />}
+            <UploadProgressPanel />
         </div>
     );
 }

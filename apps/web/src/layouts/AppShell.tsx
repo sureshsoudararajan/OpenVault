@@ -2,21 +2,34 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useFileManagerStore } from '../stores/fileManagerStore';
 import { useThemeStore } from '../stores/themeStore';
-import { fileApi } from '../services/api';
+import { fileApi, tagApi } from '../services/api';
 import {
     FolderOpen, Trash2, Share2, Settings, Search, Upload, LogOut,
-    Shield, HardDrive, Menu, X, ChevronDown, Sun, Moon
+    Shield, HardDrive, Menu, X, ChevronDown, Sun, Moon, Tag as TagIcon
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function AppShell() {
     const { user, logout } = useAuthStore();
-    const { searchQuery, setSearchQuery } = useFileManagerStore();
+    const { searchQuery, setSearchQuery, selectedTag, setSelectedTag, setCurrentFolderId } = useFileManagerStore();
     const { theme, toggleTheme } = useThemeStore();
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
+    const [tags, setTags] = useState<{ id: string; name: string; color: string }[]>([]);
+
+    useEffect(() => {
+        const fetchTags = async () => {
+            try {
+                const res = await tagApi.list();
+                setTags((res as any).data || []);
+            } catch (err) {
+                console.error('Failed to fetch tags:', err);
+            }
+        };
+        fetchTags();
+    }, []);
 
     const handleSidebarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const fileList = e.target.files;
@@ -73,7 +86,7 @@ export default function AppShell() {
 
                 {/* Upload Button */}
                 <div className="px-4 py-4">
-                    <label className="btn-primary flex w-full items-center justify-center gap-2 text-sm cursor-pointer !text-white">
+                    <label className="btn-primary flex w-full items-center justify-center gap-2 text-sm cursor-pointer">
                         <Upload className="h-4 w-4" />
                         Upload Files
                         <input type="file" multiple className="hidden" onChange={handleSidebarUpload} />
@@ -82,22 +95,44 @@ export default function AppShell() {
 
                 {/* Navigation */}
                 <nav className="flex-1 space-y-1 px-3">
-                    <NavLink to="/" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                    <NavLink to="/" end className={({ isActive }) => `nav-item ${isActive && !selectedTag ? 'active' : ''}`} onClick={() => { setSelectedTag(null); setCurrentFolderId(null); }}>
                         <FolderOpen className="h-4 w-4" />
                         My Files
                     </NavLink>
-                    <NavLink to="/shared" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                    <NavLink to="/shared" className={({ isActive }) => `nav-item ${isActive && !selectedTag ? 'active' : ''}`} onClick={() => setSelectedTag(null)}>
                         <Share2 className="h-4 w-4" />
                         Shared with Me
                     </NavLink>
-                    <NavLink to="/trash" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                    <NavLink to="/trash" className={({ isActive }) => `nav-item ${isActive && !selectedTag ? 'active' : ''}`} onClick={() => setSelectedTag(null)}>
                         <Trash2 className="h-4 w-4" />
                         Trash
                     </NavLink>
-                    <NavLink to="/settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                    <NavLink to="/settings" className={({ isActive }) => `nav-item ${isActive && !selectedTag ? 'active' : ''}`} onClick={() => setSelectedTag(null)}>
                         <Settings className="h-4 w-4" />
                         Settings
                     </NavLink>
+
+                    {tags.length > 0 && (
+                        <>
+                            <div className="pt-4 pb-1 pl-4 text-xs font-semibold text-surface-400 uppercase tracking-wider">
+                                Tags
+                            </div>
+                            {tags.map(tag => (
+                                <button
+                                    key={tag.id}
+                                    onClick={() => {
+                                        setSelectedTag({ id: tag.id, name: tag.name });
+                                        setCurrentFolderId(null);
+                                        navigate('/');
+                                    }}
+                                    className={`nav-item w-full justify-start ${selectedTag?.id === tag.id ? 'active' : ''}`}
+                                >
+                                    <TagIcon className="h-4 w-4" style={{ color: tag.color }} />
+                                    <span className="truncate">{tag.name}</span>
+                                </button>
+                            ))}
+                        </>
+                    )}
                 </nav>
 
                 {/* Storage Usage */}

@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { fileApi } from '../services/api';
 import {
     X, Download, ChevronLeft, ChevronRight,
-    FileText, Image, Film, Music, FileArchive, File, FileSpreadsheet,
+    Image, Film, Music,
+    FileText, FileArchive, File, FileCode2,
+    AlignLeft, Table, Presentation,
     Maximize2, Minimize2, Loader2, Save, Pencil, Eye as EyeIcon
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -15,6 +17,7 @@ interface FilePreviewProps {
     onClose: () => void;
     onNext?: () => void;
     onPrev?: () => void;
+    downloadFn?: (id: string) => Promise<{ data?: { downloadUrl?: string } }>;
 }
 
 const formatSize = (bytes: number) => {
@@ -39,7 +42,7 @@ const ODT_MIMES = [
 ];
 
 export default function FilePreview({
-    fileId, fileName, mimeType, fileSize, onClose, onNext, onPrev
+    fileId, fileName, mimeType, fileSize, onClose, onNext, onPrev, downloadFn
 }: FilePreviewProps) {
     const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -51,7 +54,8 @@ export default function FilePreview({
             setLoading(true);
             setError('');
             try {
-                const res: any = await fileApi.download(fileId);
+                const loader = downloadFn ?? ((id: string) => fileApi.download(id));
+                const res: any = await loader(fileId);
                 setDownloadUrl(res.data?.downloadUrl || null);
             } catch (err: any) {
                 setError(err.message || 'Failed to load preview');
@@ -60,7 +64,7 @@ export default function FilePreview({
             }
         };
         loadPreview();
-    }, [fileId]);
+    }, [fileId, downloadFn]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -84,15 +88,33 @@ export default function FilePreview({
     const isPreviewable = isImage || isVideo || isAudio || isPdf || isText || isMarkdown || isExcel || isWord || isOdt;
 
     const getFileIcon = () => {
-        if (isImage) return <Image className="h-16 w-16 text-pink-400" />;
-        if (isVideo) return <Film className="h-16 w-16 text-purple-400" />;
-        if (isAudio) return <Music className="h-16 w-16 text-cyan-400" />;
-        if (isPdf) return <FileText className="h-16 w-16 text-red-400" />;
-        if (isExcel) return <FileSpreadsheet className="h-16 w-16 text-emerald-400" />;
-        if (isWord) return <FileText className="h-16 w-16 text-blue-400" />;
-        if (isOdt) return <FileText className="h-16 w-16 text-orange-400" />;
-        if (mimeType.includes('zip') || mimeType.includes('archive')) return <FileArchive className="h-16 w-16 text-amber-400" />;
-        return <File className="h-16 w-16 text-brand-400" />;
+        if (mimeType.startsWith('image/')) return <Image className="h-20 w-20 text-pink-500 dark:text-pink-400" />;
+        if (mimeType.startsWith('video/')) return <Film className="h-20 w-20 text-purple-500 dark:text-purple-400" />;
+        if (mimeType.startsWith('audio/')) return <Music className="h-20 w-20 text-cyan-500 dark:text-cyan-400" />;
+        if (mimeType.includes('pdf')) return <FileText className="h-20 w-20 text-red-500 dark:text-red-400" />;
+        if (mimeType.includes('zip') || mimeType.includes('archive')) return <FileArchive className="h-20 w-20 text-amber-500 dark:text-amber-400" />;
+        if (mimeType.includes('javascript') || mimeType.includes('json') || mimeType.includes('html') || mimeType.includes('css')) return <FileCode2 className="h-20 w-20 text-blue-500 dark:text-blue-400" />;
+
+        // Word Documents
+        if (mimeType.includes('wordprocessingml.document') || mimeType.includes('msword') || mimeType.includes('vnd.oasis.opendocument.text')) {
+            return <AlignLeft className="h-20 w-20 text-blue-600 dark:text-blue-400" />;
+        }
+
+        // Excel Documents
+        if (mimeType.includes('spreadsheetml.sheet') || mimeType.includes('ms-excel') || mimeType.includes('vnd.oasis.opendocument.spreadsheet') || mimeType.includes('csv')) {
+            return <Table className="h-20 w-20 text-green-600 dark:text-green-400" />;
+        }
+
+        // PowerPoint Documents
+        if (mimeType.includes('presentationml.presentation') || mimeType.includes('ms-powerpoint') || mimeType.includes('vnd.oasis.opendocument.presentation')) {
+            return <Presentation className="h-20 w-20 text-orange-600 dark:text-orange-400" />;
+        }
+
+        if (mimeType.startsWith('text/')) {
+            return <FileText className="h-20 w-20 text-gray-500 dark:text-gray-400" />;
+        }
+
+        return <File className="h-20 w-20 text-gray-500 dark:text-gray-400" />;
     };
 
     const handleDownload = () => {
@@ -114,7 +136,7 @@ export default function FilePreview({
                             {isVideo && <Film className="h-5 w-5 text-purple-400" />}
                             {isAudio && <Music className="h-5 w-5 text-cyan-400" />}
                             {isPdf && <FileText className="h-5 w-5 text-red-400" />}
-                            {isExcel && <FileSpreadsheet className="h-5 w-5 text-emerald-400" />}
+                            {isExcel && <Table className="h-5 w-5 text-emerald-400" />}
                             {isWord && <FileText className="h-5 w-5 text-blue-400" />}
                             {isOdt && <FileText className="h-5 w-5 text-orange-400" />}
                             {!isImage && !isVideo && !isAudio && !isPdf && !isExcel && !isWord && !isOdt && <File className="h-5 w-5 text-brand-400" />}
@@ -149,7 +171,7 @@ export default function FilePreview({
                         <div className="flex flex-col items-center gap-3 text-center">
                             {getFileIcon()}
                             <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
-                            <button onClick={handleDownload} className="btn-primary text-sm mt-2 !text-white">
+                            <button onClick={handleDownload} className="btn-primary text-sm mt-2">
                                 <Download className="mr-2 inline h-4 w-4" /> Download Instead
                             </button>
                         </div>
@@ -161,7 +183,7 @@ export default function FilePreview({
                                 <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">{formatSize(fileSize)}</p>
                                 <p className="mt-0.5 text-xs text-surface-400 dark:text-surface-500">Preview not available for this file type</p>
                             </div>
-                            <button onClick={handleDownload} className="btn-primary flex items-center gap-2 text-sm mt-2 !text-white">
+                            <button onClick={handleDownload} className="btn-primary flex items-center gap-2 text-sm mt-2">
                                 <Download className="h-4 w-4" /> Download File
                             </button>
                         </div>

@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { userApi, authApi } from '../services/api';
-import { Settings, User, Shield, HardDrive, Key, Loader2, Copy, Download, QrCode, AlertTriangle, Lock, Eye, EyeOff, ShieldCheck, Mail, Send } from 'lucide-react';
+import { Settings, User, Shield, HardDrive, Key, Loader2, Copy, Download, QrCode, AlertTriangle, Lock, Eye, EyeOff, ShieldCheck, Send } from 'lucide-react';
 
 export default function SettingsPage() {
     const { user, updateUser } = useAuthStore();
     const [name, setName] = useState(user?.name || '');
-    const [email, setEmail] = useState(user?.email || '');
-    const [secondaryEmail, setSecondaryEmail] = useState(user?.secondaryEmail || '');
+    const [email] = useState(user?.email || '');
+
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [error, setError] = useState('');
@@ -51,7 +50,7 @@ export default function SettingsPage() {
         setSaving(true);
         setError('');
         try {
-            const res: any = await userApi.updateMe({ name, email, secondaryEmail });
+            const res: any = await userApi.updateMe({ name, email });
             updateUser(res.data);
             setSaved(true);
             setTimeout(() => setSaved(false), 2000);
@@ -241,29 +240,34 @@ export default function SettingsPage() {
     };
 
     return (
-        <div className="animate-fade-in max-w-2xl pb-12">
-            <div className="mb-8 flex items-center gap-3">
-                <Settings className="h-6 w-6 text-brand-400" />
-                <h1 className="text-xl font-semibold text-surface-900 dark:text-white">Settings</h1>
+        <div className="animate-fade-in max-w-4xl mx-auto pb-12">
+            <div className="mb-10 flex flex-col items-center justify-center gap-4 text-center mt-6">
+                <div className="h-16 w-16 bg-brand-500/10 dark:bg-brand-400/10 rounded-2xl flex items-center justify-center shadow-inner">
+                    <Settings className="h-8 w-8 text-brand-600 dark:text-brand-400" />
+                </div>
+                <div>
+                    <h1 className="text-3xl font-bold text-surface-900 dark:text-white mb-2 tracking-tight">Account Settings</h1>
+                    <p className="text-surface-500 dark:text-surface-400 max-w-md mx-auto">Manage your profile information, password, and double up security with two-factor authentication.</p>
+                </div>
             </div>
 
             {/* Profile Section */}
-            <section className="glass-card mb-6 overflow-hidden">
-                <div className="border-b border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/50 px-6 py-4">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-surface-900 dark:text-white">
+            <section className="bg-white dark:bg-surface-800/80 rounded-2xl border border-surface-200/50 dark:border-surface-700/50 shadow-sm mb-8 overflow-hidden backdrop-blur-sm transition-all hover:shadow-md">
+                <div className="border-b border-surface-100 dark:border-surface-700/50 bg-gradient-to-r from-surface-50/80 to-transparent dark:from-surface-800/80 px-8 py-5">
+                    <div className="flex items-center gap-3 text-sm font-bold text-surface-900 dark:text-white uppercase tracking-wider">
                         <User className="h-4 w-4 text-brand-500" /> Account Information
                     </div>
                 </div>
 
-                <div className="p-6">
-                    <div className="flex flex-col md:flex-row gap-8">
+                <div className="p-8">
+                    <div className="flex flex-col md:flex-row gap-10">
                         {/* Avatar Column */}
                         <div className="flex flex-col items-center">
-                            <div className="group relative h-24 w-24 overflow-hidden rounded-full border-2 border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-900">
+                            <div className="group relative h-32 w-32 overflow-hidden rounded-full ring-4 ring-surface-50 dark:ring-surface-800 shadow-lg bg-gradient-to-br from-brand-100 to-indigo-50 dark:from-surface-700 dark:to-surface-800">
                                 {user?.avatarUrl ? (
-                                    <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+                                    <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
                                 ) : (
-                                    <div className="flex h-full w-full items-center justify-center text-2xl font-bold text-surface-400">
+                                    <div className="flex h-full w-full items-center justify-center text-4xl font-bold text-brand-600 dark:text-brand-400 shadow-inner">
                                         {user?.name?.charAt(0).toUpperCase()}
                                     </div>
                                 )}
@@ -273,7 +277,7 @@ export default function SettingsPage() {
                                     <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
                                 </label>
                                 {uploadingAvatar && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
                                         <Loader2 className="h-6 w-6 animate-spin text-white" />
                                     </div>
                                 )}
@@ -295,27 +299,17 @@ export default function SettingsPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1.5 block text-xs font-medium text-surface-500 dark:text-surface-400">Email Address</label>
+                                    <label className="mb-1.5 block text-xs font-medium text-surface-500 dark:text-surface-400">Email Address (Primary)</label>
                                     <input
                                         type="email"
                                         value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        className="input-field"
-                                        placeholder="john@example.com"
-                                    />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="mb-1.5 block text-xs font-medium text-surface-500 dark:text-surface-400">Secondary Email (Optional, for backup verification)</label>
-                                    <input
-                                        type="email"
-                                        value={secondaryEmail}
-                                        onChange={(e) => setSecondaryEmail(e.target.value)}
-                                        className="input-field"
-                                        placeholder="backup@example.com"
+                                        readOnly
+                                        className="input-field bg-surface-50 dark:bg-surface-900/50 text-surface-500 dark:text-surface-400 cursor-not-allowed border-transparent font-medium"
+                                        title="Primary email cannot be changed"
                                     />
                                 </div>
                             </div>
-                            <div className="flex justify-end">
+                            <div className="flex justify-end pt-4">
                                 <button onClick={handleSaveProfile} disabled={saving} className="btn-primary min-w-[120px] text-sm flex items-center justify-center gap-2">
                                     {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? '✓ Saved' : 'Update Profile'}
                                 </button>
@@ -326,13 +320,15 @@ export default function SettingsPage() {
             </section>
 
             {/* Storage Section */}
-            <section className="glass-card mb-6 p-6">
-                <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-surface-900 dark:text-white">
-                    <HardDrive className="h-4 w-4 text-brand-500" /> Storage Usage
+            <section className="bg-white dark:bg-surface-800/80 rounded-2xl border border-surface-200/50 dark:border-surface-700/50 shadow-sm mb-8 p-8 backdrop-blur-sm transition-all hover:shadow-md">
+                <div className="mb-6 flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-sm font-bold text-surface-900 dark:text-white uppercase tracking-wider">
+                        <HardDrive className="h-4 w-4 text-brand-500" /> Storage Usage
+                    </div>
                 </div>
 
-                <div className="progress-bar mb-3 bg-surface-100 dark:bg-surface-800" style={{ height: '10px' }}>
-                    <div className="progress-bar-fill shadow-[0_0_10px_rgba(99,102,241,0.3)]" style={{ width: `${storagePercent}%` }} />
+                <div className="progress-bar mb-4 bg-surface-100 dark:bg-surface-900/50 overflow-hidden rounded-full border border-surface-200 dark:border-surface-700/50" style={{ height: '12px' }}>
+                    <div className="progress-bar-fill shadow-[0_0_15px_rgba(99,102,241,0.5)] transition-all duration-1000 ease-out rounded-full" style={{ width: `${storagePercent}%`, backgroundImage: 'linear-gradient(90deg, #6366f1, #a855f7)' }} />
                 </div>
                 <div className="flex items-center justify-between text-xs text-surface-500">
                     <span>{user ? `${formatBytes(user.storageUsed)} used` : '—'}</span>
@@ -340,10 +336,10 @@ export default function SettingsPage() {
                 </div>
             </section>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                 {/* Security Section (Change Password) */}
-                <section className="glass-card p-6">
-                    <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-surface-900 dark:text-white">
+                <section className="bg-white dark:bg-surface-800/80 rounded-2xl border border-surface-200/50 dark:border-surface-700/50 shadow-sm p-8 backdrop-blur-sm transition-all hover:shadow-md flex flex-col">
+                    <div className="mb-6 flex items-center gap-3 text-sm font-bold text-surface-900 dark:text-white uppercase tracking-wider">
                         <Key className="h-4 w-4 text-brand-500" /> Change Password
                     </div>
 
@@ -381,11 +377,11 @@ export default function SettingsPage() {
                                 required
                             />
                         </div>
-                        <button type="submit" disabled={passwordSaving} className="btn-secondary w-full text-sm flex items-center justify-center gap-2">
+                        <button type="submit" disabled={passwordSaving} className="btn-secondary w-full text-sm flex items-center justify-center gap-2 py-2.5">
                             {passwordSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : passwordSaved ? '✓ Changed' : 'Update Password'}
                         </button>
 
-                        <div className="text-center pt-2 border-t border-surface-200 dark:border-surface-700 mt-4">
+                        <div className="text-center pt-4 border-t border-surface-100 dark:border-surface-700/50 mt-6">
                             <button
                                 type="button"
                                 onClick={() => {
@@ -405,18 +401,18 @@ export default function SettingsPage() {
                 </section>
 
                 {/* 2FA Status Section */}
-                <section className="glass-card p-6">
-                    <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-surface-900 dark:text-white">
+                <section className="bg-white dark:bg-surface-800/80 rounded-2xl border border-surface-200/50 dark:border-surface-700/50 shadow-sm p-8 backdrop-blur-sm transition-all hover:shadow-md flex flex-col">
+                    <div className="mb-6 flex items-center gap-3 text-sm font-bold text-surface-900 dark:text-white uppercase tracking-wider">
                         <Shield className="h-4 w-4 text-brand-500" /> Multi-Factor Auth
                     </div>
 
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                            <span className="text-sm text-surface-600 dark:text-surface-400">Status</span>
+                            <span className="text-sm font-medium text-surface-700 dark:text-surface-300">Status</span>
                             {user?.mfaEnabled ? (
-                                <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Enabled</span>
+                                <span className="inline-flex items-center rounded-md bg-emerald-500/15 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Enabled</span>
                             ) : (
-                                <span className="inline-flex items-center rounded-full bg-surface-500/10 px-2 py-1 text-[10px] font-bold text-surface-500 uppercase tracking-wider">Disabled</span>
+                                <span className="inline-flex items-center rounded-md bg-surface-500/15 px-2.5 py-1 text-xs font-bold text-surface-500 uppercase tracking-widest">Disabled</span>
                             )}
                         </div>
 

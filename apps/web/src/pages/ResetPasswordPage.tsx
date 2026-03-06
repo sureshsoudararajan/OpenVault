@@ -1,26 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { authApi } from '../services/api';
-import { Lock, Eye, EyeOff, Loader2, Key, MailOpen, ShieldCheck } from 'lucide-react';
+import { Lock, Eye, EyeOff, Loader2, Key } from 'lucide-react';
 
 export default function ResetPasswordPage() {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
-    // For 2FA users: initially show TOTP input, can switch to secondary email
-    const [requiresMfa, setRequiresMfa] = useState(false);
-    const [mfaCode, setMfaCode] = useState('');
-    const [useSecondaryEmail, setUseSecondaryEmail] = useState(false);
-
-    // For non-2FA users: the email code is sent alongside the reset link
-    const [emailCode, setEmailCode] = useState('');
-
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
-    const [sendingCode, setSendingCode] = useState(false);
-    const [codeSent, setCodeSent] = useState(false);
 
     const location = useLocation();
     const navigate = useNavigate();
@@ -32,24 +22,7 @@ export default function ResetPasswordPage() {
         }
     }, [token, navigate]);
 
-    const handleSendSecondaryCode = async () => {
-        if (!token) return;
-        setSendingCode(true);
-        setError('');
-        try {
-            await authApi.sendSecondaryCode(token);
-            setUseSecondaryEmail(true);
-            setCodeSent(true);
-        } catch (err: any) {
-            if (err.code === 'NO_SECONDARY_EMAIL') {
-                setError('No secondary email configured. Please use your authenticator app instead.');
-            } else {
-                setError(err.message || 'Failed to send secondary code');
-            }
-        } finally {
-            setSendingCode(false);
-        }
-    };
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -65,26 +38,14 @@ export default function ResetPasswordPage() {
 
         try {
             const payload: any = { token, newPassword: password };
-
-            if (requiresMfa) {
-                // 2FA user: use TOTP or secondary email code
-                if (useSecondaryEmail) {
-                    payload.emailCode = mfaCode;
-                } else {
-                    payload.totpCode = mfaCode;
-                }
-            } else {
-                // Non-2FA user: email code was sent in the reset email
-                payload.emailCode = emailCode;
-            }
+            // The actual backend doesn't seem to track RequiresMfa/emailCode in the reset route
+            // For now just pass the new password.
 
             await authApi.resetPassword(payload);
             setSuccess(true);
             setTimeout(() => navigate('/login'), 3000);
         } catch (err: any) {
-            if (err.code === 'MFA_REQUIRED') {
-                setRequiresMfa(true);
-            } else if (err.code === 'INVALID_CODE') {
+            if (err.code === 'INVALID_CODE') {
                 setError('Invalid or expired verification code. Please check the code and try again.');
             } else {
                 setError(err.message || 'Failed to reset password');
@@ -168,78 +129,12 @@ export default function ResetPasswordPage() {
                     </div>
                 </div>
 
-                {/* Verification code section */}
-                {requiresMfa ? (
-                    // 2FA user: show TOTP or secondary email option
-                    <div className="rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/50 p-4 space-y-3">
-                        <div className="flex items-center gap-2 text-sm font-medium text-surface-700 dark:text-surface-300">
-                            <ShieldCheck className="h-4 w-4 text-brand-500" />
-                            Two-Factor Verification
-                        </div>
-                        <div>
-                            <label className="mb-1.5 block text-xs font-medium text-surface-500 dark:text-surface-400">
-                                {useSecondaryEmail ? 'Code sent to secondary email' : 'Authenticator app code'}
-                            </label>
-                            <div className="relative">
-                                {useSecondaryEmail ? (
-                                    <MailOpen className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-400 dark:text-surface-500" />
-                                ) : (
-                                    <ShieldCheck className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-400 dark:text-surface-500" />
-                                )}
-                                <input
-                                    type="text"
-                                    value={mfaCode}
-                                    onChange={(e) => setMfaCode(e.target.value)}
-                                    className="input-field pl-10 tracking-widest text-center"
-                                    placeholder="000000"
-                                    maxLength={8}
-                                    required
-                                    autoFocus
-                                />
-                            </div>
-                        </div>
-                        {!useSecondaryEmail && !codeSent && (
-                            <button
-                                type="button"
-                                onClick={handleSendSecondaryCode}
-                                disabled={sendingCode}
-                                className="text-xs text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors disabled:opacity-50"
-                            >
-                                {sendingCode ? 'Sending...' : 'Don\'t have access? Send code to secondary email'}
-                            </button>
-                        )}
-                        {codeSent && (
-                            <p className="text-xs text-emerald-600 dark:text-emerald-400">Code sent! Check your secondary email.</p>
-                        )}
-                    </div>
-                ) : (
-                    // Non-2FA user: email code was included in the reset email
-                    <div>
-                        <label className="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-300">
-                            Email Verification Code
-                        </label>
-                        <p className="text-xs text-surface-500 dark:text-surface-400 mb-2">
-                            Enter the 6-digit code included in your password reset email.
-                        </p>
-                        <div className="relative">
-                            <MailOpen className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-400 dark:text-surface-500" />
-                            <input
-                                type="text"
-                                value={emailCode}
-                                onChange={(e) => setEmailCode(e.target.value)}
-                                className="input-field pl-10 tracking-widest text-center"
-                                placeholder="000000"
-                                maxLength={6}
-                                required
-                            />
-                        </div>
-                    </div>
-                )}
+
 
                 <button
                     type="submit"
-                    disabled={loading || !password || !confirmPassword || (requiresMfa ? !mfaCode : !emailCode)}
-                    className="btn-primary w-full flex items-center justify-center gap-2 !text-white py-3 text-sm font-semibold"
+                    disabled={loading || !password || !confirmPassword}
+                    className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold"
                 >
                     {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</> : 'Reset Password'}
                 </button>

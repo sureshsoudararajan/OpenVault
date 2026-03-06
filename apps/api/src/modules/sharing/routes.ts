@@ -18,8 +18,9 @@ const createShareLinkSchema = z.object({
     folderId: z.string().uuid().optional(),
     permission: z.enum(['viewer', 'editor']).default('viewer'),
     password: z.string().optional(),
-    opensAt: z.string().datetime().optional(),
-    expiresAt: z.string().datetime().optional(),
+    // Accept ISO strings with or without timezone offset
+    opensAt: z.string().optional(),
+    expiresAt: z.string().optional(),
     expiresIn: z.number().positive().optional(), // hours (legacy)
     maxDownloads: z.number().positive().optional(),
     otpEnabled: z.boolean().default(false),
@@ -30,7 +31,15 @@ const grantPermissionSchema = z.object({
     folderId: z.string().uuid().optional(),
     userId: z.string().uuid(),
     role: z.enum(['viewer', 'editor', 'owner']),
-    expiresAt: z.string().datetime().optional(),
+    expiresAt: z.string().optional(),
+});
+
+const inviteByEmailSchema = z.object({
+    fileId: z.string().uuid().optional(),
+    folderId: z.string().uuid().optional(),
+    email: z.string().email(),
+    role: z.enum(['viewer', 'editor']).default('viewer'),
+    expiresAt: z.string().optional(),
 });
 
 // Helper: validate share link constraints
@@ -502,5 +511,213 @@ export async function sharingRoutes(app: FastifyInstance) {
         const { id } = request.params as { id: string };
         await prisma.shareLink.delete({ where: { id } });
         return { success: true };
+    });
+
+    // GET /api/sharing/shared-with-me — List all files/folders shared with the current user
+    app.get('/shared-with-me', { preHandler: [authGuard] }, async (request) => {
+        const permissions = await prisma.permission.findMany({
+            where: {
+                grantedToId: request.userId,
+                OR: [
+                    { expiresAt: null },
+                    { expiresAt: { gt: new Date() } },
+                ],
+            },
+            include: {
+                grantedBy: { select: { id: true, name: true, email: true, avatarUrl: true } },
+                file: {
+                    where: { isTrashed: false },
+                    select: {
+                        id: true,
+                        name: true,
+                        mimeType: true,
+                        size: true,
+                        thumbnailKey: true,
+                        currentVersion: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                },
+                folder: {
+                    where: { isTrashed: false },
+                    select: {
+                        id: true,
+                        name: true,
+                        color: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        const result = permissions
+            .filter((p: any) => p.file || p.folder)
+            .map((p: any) => ({
+                permissionId: p.id,
+                role: p.role,
+                sharedAt: p.createdAt,
+                expiresAt: p.expiresAt,
+                sharedBy: p.grantedBy,
+                file: p.file ? { ...p.file, size: Number(p.file.size) } : null,
+                folder: p.folder || null,
+            }));
+
+        return { success: true, data: result };
+    });
+
+    // GET /api/sharing/shared-with-me/:id/download — Download a shared file
+    app.get('/shared-with-me/:id/download', { preHandler: [authGuard] }, async (request, reply) => {
+        const { id } = request.params as { id: string };
+
+        const permission = await prisma.permission.findFirst({
+            where: {
+                fileId: id,
+                grantedToId: request.userId,
+                OR: [
+                    { expiresAt: null },
+                    { expiresAt: { gt: new Date() } },
+                ],
+            },
+            include: { file: true },
+        });
+
+        if (!permission || !permission.file || permission.file.isTrashed) {
+            return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Shared file not found or access expired' } });
+        }
+
+        const downloadUrl = await getPresignedDownloadUrl(config.minio.bucket, permission.file.storageKey, 300);
+
+        await prisma.activityLog.create({
+            data: {
+                userId: request.userId,
+                action: 'download',
+                resourceId: id,
+                resourceType: 'file',
+                ipAddress: request.ip,
+            },
+        });
+
+        return { success: true, data: { downloadUrl, fileName: permission.file.name } };
+    });
+
+    // GET /api/sharing/shared-with-me/:id/thumbnail — Get thumbnail for a shared file
+    app.get('/shared-with-me/:id/thumbnail', { preHandler: [authGuard] }, async (request, reply) => {
+        const { id } = request.params as { id: string };
+
+        const permission = await prisma.permission.findFirst({
+            where: {
+                fileId: id,
+                grantedToId: request.userId,
+                OR: [
+                    { expiresAt: null },
+                    { expiresAt: { gt: new Date() } },
+                ],
+            },
+            include: {
+                file: { select: { thumbnailKey: true, isTrashed: true } },
+            },
+        });
+
+        if (!permission || !permission.file || permission.file.isTrashed || !permission.file.thumbnailKey) {
+            return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Thumbnail not found' } });
+        }
+
+        const downloadUrl = await getPresignedDownloadUrl(config.minio.bucket, permission.file.thumbnailKey, 300);
+        return { success: true, data: { downloadUrl } };
+    });
+
+    // POST /api/sharing/invite — Share file/folder with a user by email
+    app.post('/invite', { preHandler: [authGuard] }, async (request, reply) => {
+        const body = inviteByEmailSchema.parse(request.body);
+
+        if (!body.fileId && !body.folderId) {
+            return reply.status(400).send({
+                success: false,
+                error: { code: 'INVALID_INPUT', message: 'Either fileId or folderId is required' },
+            });
+        }
+
+        // Find user by email
+        const targetUser = await prisma.user.findUnique({
+            where: { email: body.email },
+            select: { id: true, name: true, email: true },
+        });
+
+        if (!targetUser) {
+            return reply.status(404).send({
+                success: false,
+                error: { code: 'USER_NOT_FOUND', message: 'No account found with that email address.' },
+            });
+        }
+
+        // Prevent sharing with yourself
+        if (targetUser.id === request.userId) {
+            return reply.status(400).send({
+                success: false,
+                error: { code: 'SELF_SHARE', message: 'You cannot share a file with yourself.' },
+            });
+        }
+
+        // Check if permission already exists
+        const existing = await prisma.permission.findFirst({
+            where: {
+                grantedToId: targetUser.id,
+                ...(body.fileId ? { fileId: body.fileId } : { folderId: body.folderId }),
+            },
+        });
+
+        if (existing) {
+            // Update the existing permission's role
+            const updated = await prisma.permission.update({
+                where: { id: existing.id },
+                data: {
+                    role: body.role,
+                    expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
+                },
+                include: {
+                    grantedTo: { select: { id: true, name: true, email: true, avatarUrl: true } },
+                },
+            });
+            return { success: true, data: updated, updated: true };
+        }
+
+        const permission = await prisma.permission.create({
+            data: {
+                fileId: body.fileId || null,
+                folderId: body.folderId || null,
+                grantedToId: targetUser.id,
+                grantedById: request.userId,
+                role: body.role,
+                expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
+            },
+            include: {
+                grantedTo: { select: { id: true, name: true, email: true, avatarUrl: true } },
+            },
+        });
+
+        return { success: true, data: permission };
+    });
+
+    // GET /api/sharing/links/:resourceId — List share links for a file or folder
+    app.get('/links/:resourceId', { preHandler: [authGuard] }, async (request) => {
+        const { resourceId } = request.params as { resourceId: string };
+
+        const links = await prisma.shareLink.findMany({
+            where: {
+                OR: [{ fileId: resourceId }, { folderId: resourceId }],
+                createdById: request.userId,
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        return {
+            success: true,
+            data: links.map((l: any) => ({
+                ...l,
+                shareUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/share/${l.token}`,
+            })),
+        };
     });
 }

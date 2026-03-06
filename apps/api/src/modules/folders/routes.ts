@@ -156,6 +156,12 @@ export async function folderRoutes(app: FastifyInstance) {
                     select: { id: true, name: true, mimeType: true, size: true, createdAt: true },
                     orderBy: { name: 'asc' },
                 },
+                _count: {
+                    select: {
+                        files: { where: { isTrashed: false } },
+                        children: { where: { isTrashed: false } },
+                    },
+                },
             },
         });
 
@@ -163,14 +169,29 @@ export async function folderRoutes(app: FastifyInstance) {
             return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Folder not found' } });
         }
 
+        // Build ancestor breadcrumb chain
+        const ancestors: { id: string; name: string }[] = [];
+        let currentParentId = folder.parentId;
+        while (currentParentId) {
+            const parent = await prisma.folder.findFirst({
+                where: { id: currentParentId, userId: request.userId },
+                select: { id: true, name: true, parentId: true },
+            });
+            if (!parent) break;
+            ancestors.unshift({ id: parent.id, name: parent.name });
+            currentParentId = parent.parentId;
+        }
+
         return {
             success: true,
             data: {
                 ...folder,
                 files: folder.files.map((f) => ({ ...f, size: Number(f.size) })),
+                ancestors,
             },
         };
     });
+
 
     // PATCH /api/folders/:id — Rename or update folder
     app.patch('/:id', { preHandler: [authGuard] }, async (request) => {

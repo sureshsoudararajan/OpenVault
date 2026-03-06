@@ -177,7 +177,7 @@ export default function ForgotPasswordPage() {
                     <button
                         type="submit"
                         disabled={loading || !code || !password || !confirmPassword}
-                        className="btn-primary w-full flex items-center justify-center gap-2 !text-white py-3 text-sm font-semibold"
+                        className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold"
                     >
                         {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Resetting...</> : 'Reset Password'}
                     </button>
@@ -225,7 +225,7 @@ export default function ForgotPasswordPage() {
                 <button
                     type="submit"
                     disabled={loading || !email}
-                    className="btn-primary w-full flex items-center justify-center gap-2 !text-white py-3 text-sm font-semibold"
+                    className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold"
                 >
                     {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending...</> : <><Send className="h-4 w-4" /> Send Verification Code</>}
                 </button>

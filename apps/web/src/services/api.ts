@@ -154,6 +154,15 @@ export const fileApi = {
     upload: (formData: FormData) =>
         request('/files/upload', { method: 'POST', body: formData }),
 
+    initUpload: (data: { name: string; size: number; mimeType: string; folderId?: string | null }) =>
+        request('/files/upload/init', { method: 'POST', body: data }),
+
+    completeUpload: (data: {
+        storageKey: string; name: string; mimeType: string;
+        size: number; folderId?: string | null; sha256Hash?: string;
+    }) => request('/files/upload/complete', { method: 'POST', body: data }),
+
+
     download: (id: string) => request(`/files/${id}/download`),
 
     getThumbnail: (id: string) => request(`/files/${id}/thumbnail`),
@@ -277,6 +286,17 @@ export const sharingApi = {
 
     grantPermission: (data: { fileId?: string; folderId?: string; userId: string; role: string }) =>
         request('/sharing/permission', { method: 'POST', body: data }),
+
+    invite: (data: { fileId?: string; folderId?: string; email: string; role: string; expiresAt?: string }) =>
+        request('/sharing/invite', { method: 'POST', body: data }),
+
+    sharedWithMe: () => request('/sharing/shared-with-me'),
+
+    downloadSharedWithMe: (id: string) => request(`/sharing/shared-with-me/${id}/download`),
+
+    getSharedThumbnail: (id: string) => request(`/sharing/shared-with-me/${id}/thumbnail`),
+
+    listLinks: (resourceId: string) => request(`/sharing/links/${resourceId}`),
 
     listPermissions: (resourceId: string) => request(`/sharing/permissions/${resourceId}`),
 

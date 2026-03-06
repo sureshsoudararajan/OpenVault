@@ -235,7 +235,7 @@ export default function ShareLinkPage() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button onClick={() => handleDownload()} className="btn-primary flex items-center gap-2 text-sm !text-white">
+                        <button onClick={() => handleDownload()} className="btn-primary flex items-center gap-2 text-sm">
                             <Download className="h-4 w-4" /> Download
                         </button>
                         <button onClick={() => { setPreviewUrl(''); setPreviewData(null); }} className={`rounded-lg px-3 py-2 text-sm font-medium ${theme === 'dark' ? 'text-surface-400 hover:text-white hover:bg-surface-800' : 'text-surface-500 hover:text-surface-900 hover:bg-surface-100'}`}>
@@ -263,13 +263,13 @@ export default function ShareLinkPage() {
                                     {isEditing ? (
                                         <>
                                             <button onClick={() => setIsEditing(false)} className="px-3 py-1.5 text-xs font-medium text-surface-500 hover:text-surface-900 dark:hover:text-white transition-colors">Cancel</button>
-                                            <button onClick={handleSaveEdit} disabled={savingEdit} className="btn-primary py-1.5 px-3 text-xs flex items-center gap-1.5 !text-white">
+                                            <button onClick={handleSaveEdit} disabled={savingEdit} className="btn-primary py-1.5 px-3 text-xs flex items-center gap-1.5">
                                                 {savingEdit ? <Loader2 className="h-3 w-3 animate-spin" /> : <Shield className="h-3 w-3" />}
                                                 Save
                                             </button>
                                         </>
                                     ) : (
-                                        <button onClick={() => setIsEditing(true)} className="btn-primary py-1.5 px-3 text-xs !text-white">
+                                        <button onClick={() => setIsEditing(true)} className="btn-primary py-1.5 px-3 text-xs">
                                             Edit File
                                         </button>
                                     )}
@@ -293,7 +293,7 @@ export default function ShareLinkPage() {
                         <div className="text-center">
                             <FileText className={`mx-auto mb-3 h-16 w-16 ${theme === 'dark' ? 'text-surface-600' : 'text-surface-300'}`} />
                             <p className={`text-sm ${theme === 'dark' ? 'text-surface-400' : 'text-surface-500'}`}>Preview not available for this file type</p>
-                            <button onClick={() => handleDownload()} className="btn-primary mt-4 flex items-center gap-2 mx-auto !text-white">
+                            <button onClick={() => handleDownload()} className="btn-primary mt-4 flex items-center gap-2 mx-auto">
                                 <Download className="h-4 w-4" /> Download Instead
                             </button>
                         </div>
@@ -411,7 +411,7 @@ export default function ShareLinkPage() {
                                     placeholder="Enter password"
                                     onKeyDown={(e) => e.key === 'Enter' && handleVerifyPassword()}
                                 />
-                                <button onClick={handleVerifyPassword} disabled={verifying} className="btn-primary !text-white">
+                                <button onClick={handleVerifyPassword} disabled={verifying} className="btn-primary">
                                     {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Unlock'}
                                 </button>
                             </div>
@@ -447,7 +447,7 @@ export default function ShareLinkPage() {
                                     onKeyDown={(e) => e.key === 'Enter' && handleVerifyOtp()}
                                 />
                             </div>
-                            <button onClick={handleVerifyOtp} disabled={verifying || otpInput.length !== 6} className="btn-primary w-full !text-white flex items-center justify-center gap-2">
+                            <button onClick={handleVerifyOtp} disabled={verifying || otpInput.length !== 6} className="btn-primary w-full flex items-center justify-center gap-2">
                                 {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
                                 Verify Code
                             </button>
@@ -499,7 +499,7 @@ export default function ShareLinkPage() {
                                         <button
                                             onClick={() => handleDownload()}
                                             disabled={downloading}
-                                            className="btn-primary flex items-center gap-2 !text-white"
+                                            className="btn-primary flex items-center gap-2"
                                         >
                                             {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                                             Download

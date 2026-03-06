@@ -22,6 +22,7 @@ interface FileManagerState {
     uploadProgress: number;
     clipboard: ClipboardItem[];
     clipboardOperation: 'copy' | null;
+    selectedTag: { id: string; name: string } | null;
 
     setViewMode: (mode: ViewMode) => void;
     setSortBy: (sortBy: SortBy) => void;
@@ -35,6 +36,7 @@ interface FileManagerState {
     setUploading: (uploading: boolean, progress?: number) => void;
     setClipboard: (items: ClipboardItem[], operation: 'copy') => void;
     clearClipboard: () => void;
+    setSelectedTag: (tag: { id: string; name: string } | null) => void;
 }
 
 export const useFileManagerStore = create<FileManagerState>((set) => ({
@@ -49,6 +51,7 @@ export const useFileManagerStore = create<FileManagerState>((set) => ({
     uploadProgress: 0,
     clipboard: [],
     clipboardOperation: null,
+    selectedTag: null,
 
     setViewMode: (viewMode) => set({ viewMode }),
     setSortBy: (sortBy) => set({ sortBy }),
@@ -83,4 +86,5 @@ export const useFileManagerStore = create<FileManagerState>((set) => ({
     setUploading: (isUploading, uploadProgress = 0) => set({ isUploading, uploadProgress }),
     setClipboard: (clipboard, clipboardOperation) => set({ clipboard, clipboardOperation }),
     clearClipboard: () => set({ clipboard: [], clipboardOperation: null }),
+    setSelectedTag: (selectedTag) => set({ selectedTag }),
 }));

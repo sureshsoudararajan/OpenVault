@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../stores/authStore';
+import { Link } from 'react-router-dom';
 import { authApi } from '../services/api';
 import { Mail, Lock, User, Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
-
 export default function RegisterPage() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -12,14 +10,10 @@ export default function RegisterPage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
-    const setAuth = useAuthStore((s) => s.setAuth);
-    const navigate = useNavigate();
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setLoading(true);
-
         try {
             await authApi.register({ email, password, name });
             setSuccess(true);
@@ -29,7 +23,6 @@ export default function RegisterPage() {
             setLoading(false);
         }
     };
-
     if (success) {
         return (
             <div className="text-center animate-fade-in py-8">
@@ -48,20 +41,17 @@ export default function RegisterPage() {
             </div>
         );
     }
-
     return (
         <>
             <div className="mb-6">
                 <h2 className="text-2xl font-bold text-surface-900 dark:text-white">Create your account</h2>
                 <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Start storing your files securely</p>
             </div>
-
             {error && (
                 <div className="mb-4 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 px-4 py-3 text-sm text-red-600 dark:text-red-400 animate-fade-in">
                     {error}
                 </div>
             )}
-
             <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
                     <label className="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-300">Full Name</label>
@@ -77,7 +67,6 @@ export default function RegisterPage() {
                         />
                     </div>
                 </div>
-
                 <div>
                     <label className="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-300">Email</label>
                     <div className="relative">
@@ -92,7 +81,6 @@ export default function RegisterPage() {
                         />
                     </div>
                 </div>
-
                 <div>
                     <label className="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-300">Password</label>
                     <div className="relative">
@@ -115,11 +103,10 @@ export default function RegisterPage() {
                         </button>
                     </div>
                 </div>
-
                 <button
                     type="submit"
                     disabled={loading}
-                    className="btn-primary w-full flex items-center justify-center gap-2 !text-white py-3 text-sm font-semibold"
+                    className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold"
                 >
                     {loading ? (
                         <>
@@ -134,7 +121,6 @@ export default function RegisterPage() {
                     )}
                 </button>
             </form>
-
             <div className="mt-6 text-center">
                 <span className="text-sm text-surface-500 dark:text-surface-400">Already have an account? </span>
                 <Link to="/login" className="text-sm font-semibold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors">

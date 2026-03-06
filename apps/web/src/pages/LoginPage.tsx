@@ -138,7 +138,7 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={loading || !totpCode}
-                        className="btn-primary w-full flex items-center justify-center gap-2 !text-white py-3 text-sm font-semibold"
+                        className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold"
                     >
                         {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Verifying...</> : 'Verify & Continue'}
                     </button>
@@ -258,7 +258,7 @@ export default function LoginPage() {
                 <button
                     type="submit"
                     disabled={loading}
-                    className="btn-primary w-full flex items-center justify-center gap-2 !text-white py-3 text-sm font-semibold"
+                    className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold"
                 >
                     {loading ? (
                         <>

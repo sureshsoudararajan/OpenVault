@@ -30,6 +30,7 @@ export async function buildApp() {
                     : undefined,
         },
         maxParamLength: 256,
+        bodyLimit: 5 * 1024 * 1024 * 1024, // 5GB body limit
     });
 
     // ---- Core Plugins ----
@@ -53,8 +54,8 @@ export async function buildApp() {
 
     await app.register(multipart, {
         limits: {
-            fileSize: config.upload.maxChunkSize,
-            files: 10,
+            fileSize: 5 * 1024 * 1024 * 1024, // 5 GB — no practical limit
+            files: 20,
         },
     });
 

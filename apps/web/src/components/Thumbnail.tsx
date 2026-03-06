@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
-import { fileApi } from '../services/api';
+import { fileApi, sharingApi } from '../services/api';
 import { Image, Film } from 'lucide-react';
 
 interface ThumbnailProps {
     fileId: string;
     mimeType: string;
     className?: string;
+    isShared?: boolean;
 }
 
-export default function Thumbnail({ fileId, mimeType, className = '' }: ThumbnailProps) {
+export default function Thumbnail({ fileId, mimeType, className = '', isShared = false }: ThumbnailProps) {
     const [url, setUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -18,7 +19,10 @@ export default function Thumbnail({ fileId, mimeType, className = '' }: Thumbnai
 
         const loadThumbnail = async () => {
             try {
-                const res: any = await fileApi.getThumbnail(fileId);
+                const res: any = isShared
+                    ? await sharingApi.getSharedThumbnail(fileId)
+                    : await fileApi.getThumbnail(fileId);
+
                 if (mounted && res.data?.downloadUrl) {
                     setUrl(res.data.downloadUrl);
                 }

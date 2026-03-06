@@ -126,7 +126,21 @@ export async function tagRoutes(app: FastifyInstance) {
             where: { tagId: id },
             include: {
                 file: {
-                    select: { id: true, name: true, mimeType: true, size: true, createdAt: true },
+                    select: {
+                        id: true,
+                        name: true,
+                        mimeType: true,
+                        size: true,
+                        createdAt: true,
+                        updatedAt: true,
+                        currentVersion: true,
+                        thumbnailKey: true,
+                        fileTags: {
+                            select: {
+                                tag: { select: { id: true, name: true, color: true } },
+                            },
+                        },
+                    },
                 },
             },
         });

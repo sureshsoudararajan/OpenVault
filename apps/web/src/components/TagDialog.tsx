@@ -132,8 +132,8 @@ export default function TagDialog({ fileId, fileName, initialTags, onClose, onTa
                                             key={tag.id}
                                             onClick={() => handleToggleTag(tag.id)}
                                             className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all ${assignedTagIds.has(tag.id)
-                                                    ? 'bg-brand-500/10 border-brand-500/30'
-                                                    : 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 hover:border-surface-300'
+                                                ? 'bg-brand-500/10 border-brand-500/30'
+                                                : 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 hover:border-surface-300'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-3">
@@ -192,7 +192,7 @@ export default function TagDialog({ fileId, fileName, initialTags, onClose, onTa
                                         <button
                                             onClick={handleCreateTag}
                                             disabled={!newTagName.trim() || actionLoading === 'create'}
-                                            className="flex-1 btn-primary py-1.5 text-xs !text-white"
+                                            className="flex-1 btn-primary py-1.5 text-xs"
                                         >
                                             {actionLoading === 'create' ? <Loader2 className="h-3.5 w-3.5 animate-spin mx-auto" /> : 'Create Tag'}
                                         </button>
