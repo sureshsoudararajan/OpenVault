@@ -46,10 +46,17 @@ export async function uploadObject(
 }
 
 /**
+ * Get an object stream from MinIO.
+ */
+export async function getObject(bucket: string, key: string) {
+    return getMinioClient().getObject(bucket, key);
+}
+
+/**
  * Download an object from MinIO as a Buffer.
  */
 export async function downloadObject(bucket: string, key: string): Promise<Buffer> {
-    const stream = await getMinioClient().getObject(bucket, key);
+    const stream = await getObject(bucket, key);
     const chunks: Buffer[] = [];
 
     return new Promise((resolve, reject) => {

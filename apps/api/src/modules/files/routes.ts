@@ -117,6 +117,12 @@ export async function fileRoutes(app: FastifyInstance) {
                     currentVersion: true,
                     createdAt: true,
                     updatedAt: true,
+                    thumbnailKey: true,
+                    fileTags: {
+                        select: {
+                            tag: { select: { id: true, name: true, color: true } },
+                        },
+                    },
                 },
             }),
             prisma.file.count({ where }),
@@ -180,6 +186,22 @@ export async function fileRoutes(app: FastifyInstance) {
         });
 
         return { success: true, data: { downloadUrl, fileName: file.name } };
+    });
+
+    // GET /api/files/:id/thumbnail — Get presigned URL for thumbnail
+    app.get('/:id/thumbnail', { preHandler: [authGuard] }, async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const file = await prisma.file.findFirst({
+            where: { id, userId: request.userId },
+            select: { thumbnailKey: true },
+        });
+
+        if (!file || !file.thumbnailKey) {
+            return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Thumbnail not found' } });
+        }
+
+        const downloadUrl = await getPresignedDownloadUrl(config.minio.bucket, file.thumbnailKey, 3600);
+        return { success: true, data: { downloadUrl } };
     });
 
     // DELETE /api/files/:id — Soft-delete (move to trash)
@@ -271,18 +293,124 @@ export async function fileRoutes(app: FastifyInstance) {
         return { success: true, data: file };
     });
 
-    // GET /api/files/trash — List trashed files
+    // GET /api/files/trash/list — List ALL trashed items (files + folders)
     app.get('/trash/list', { preHandler: [authGuard] }, async (request) => {
-        const files = await prisma.file.findMany({
-            where: { userId: request.userId, isTrashed: true },
-            select: { id: true, name: true, mimeType: true, size: true, trashedAt: true },
-            orderBy: { trashedAt: 'desc' },
-        });
+        const [files, folders] = await Promise.all([
+            prisma.file.findMany({
+                where: { userId: request.userId, isTrashed: true },
+                select: { id: true, name: true, mimeType: true, size: true, trashedAt: true, folderId: true },
+                orderBy: { trashedAt: 'desc' },
+            }),
+            prisma.folder.findMany({
+                where: { userId: request.userId, isTrashed: true },
+                select: { id: true, name: true, trashedAt: true, parentId: true },
+                orderBy: { trashedAt: 'desc' },
+            }),
+        ]);
+
+        // Build a set of trashed folder IDs for quick lookup
+        const trashedFolderIdSet = new Set(folders.map(f => f.id));
+
+        // Only show top-level trashed folders (parent is not trashed)
+        const topLevelFolders = folders.filter(f =>
+            !f.parentId || !trashedFolderIdSet.has(f.parentId)
+        );
+
+        // Only show files whose parent folder is not trashed (or that have no folder)
+        const standaloneFiles = files.filter(f =>
+            !f.folderId || !trashedFolderIdSet.has(f.folderId)
+        );
 
         return {
             success: true,
-            data: files.map((f) => ({ ...f, size: Number(f.size) })),
+            data: {
+                files: standaloneFiles.map((f) => ({ ...f, size: Number(f.size), type: 'file' as const })),
+                folders: topLevelFolders.map((f) => ({ ...f, type: 'folder' as const })),
+            },
         };
+    });
+
+    // DELETE /api/files/:id/permanent — Permanently delete a single file
+    app.delete('/:id/permanent', { preHandler: [authGuard] }, async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const file = await prisma.file.findFirst({
+            where: { id, userId: request.userId },
+            select: { id: true, storageKey: true, size: true, name: true },
+        });
+
+        if (!file) {
+            return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'File not found' } });
+        }
+
+        // Delete from MinIO
+        try {
+            await deleteObject(config.minio.bucket, file.storageKey);
+        } catch (err) {
+            console.error(`Failed to delete object ${file.storageKey} from MinIO:`, err);
+        }
+
+        // Decrement storage
+        await prisma.user.update({
+            where: { id: request.userId },
+            data: { storageUsed: { decrement: file.size } },
+        });
+
+        // Delete from DB
+        await prisma.file.delete({ where: { id } });
+
+        await prisma.activityLog.create({
+            data: {
+                userId: request.userId,
+                action: 'permanent_delete',
+                resourceId: id,
+                resourceType: 'file',
+                metadata: { fileName: file.name },
+                ipAddress: request.ip,
+            },
+        });
+
+        return { success: true };
+    });
+
+    // DELETE /api/files/trash/empty — Empty entire trash (permanently delete all)
+    app.delete('/trash/empty', { preHandler: [authGuard] }, async (request) => {
+        // Get all trashed files
+        const trashedFiles = await prisma.file.findMany({
+            where: { userId: request.userId, isTrashed: true },
+            select: { id: true, storageKey: true, size: true },
+        });
+
+        // Delete from MinIO
+        for (const file of trashedFiles) {
+            try {
+                await deleteObject(config.minio.bucket, file.storageKey);
+            } catch (err) {
+                console.error(`Failed to delete object ${file.storageKey}:`, err);
+            }
+        }
+
+        // Calculate total size to decrement
+        const totalSize = trashedFiles.reduce((sum, f) => sum + f.size, BigInt(0));
+
+        // Delete all trashed files from DB
+        await prisma.file.deleteMany({
+            where: { userId: request.userId, isTrashed: true },
+        });
+
+        // Delete all trashed folders from DB
+        await prisma.folder.deleteMany({
+            where: { userId: request.userId, isTrashed: true },
+        });
+
+        // Decrement storage
+        if (totalSize > BigInt(0)) {
+            await prisma.user.update({
+                where: { id: request.userId },
+                data: { storageUsed: { decrement: totalSize } },
+            });
+        }
+
+        return { success: true };
     });
 
     // PUT /api/files/:id/content — Update text file content (for notepad editor)
@@ -348,5 +476,64 @@ export async function fileRoutes(app: FastifyInstance) {
         });
 
         return { success: true, data: { size: fileBuffer.length, version: newVersion } };
+    });
+
+    // POST /api/files/:id/copy — Copy a file to another folder
+    app.post('/:id/copy', { preHandler: [authGuard] }, async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const { targetFolderId } = request.body as { targetFolderId?: string | null };
+
+        const original = await prisma.file.findFirst({
+            where: { id, userId: request.userId },
+        });
+
+        if (!original) {
+            return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'File not found' } });
+        }
+
+        // Create a copy (shares the same storageKey for dedup, new DB record)
+        const copy = await prisma.file.create({
+            data: {
+                userId: request.userId,
+                folderId: targetFolderId ?? null,
+                name: `${original.name}`,
+                mimeType: original.mimeType,
+                size: original.size,
+                sha256Hash: original.sha256Hash,
+                storageKey: original.storageKey,
+                encryptionKeyId: original.encryptionKeyId,
+            },
+        });
+
+        // Create initial version for the copy
+        await prisma.fileVersion.create({
+            data: {
+                fileId: copy.id,
+                versionNumber: 1,
+                size: original.size,
+                sha256Hash: original.sha256Hash,
+                storageKey: original.storageKey,
+                createdBy: request.userId,
+            },
+        });
+
+        // Update storage usage
+        await prisma.user.update({
+            where: { id: request.userId },
+            data: { storageUsed: { increment: original.size } },
+        });
+
+        await prisma.activityLog.create({
+            data: {
+                userId: request.userId,
+                action: 'copy',
+                resourceId: copy.id,
+                resourceType: 'file',
+                metadata: { originalId: id, fileName: original.name },
+                ipAddress: request.ip,
+            },
+        });
+
+        return { success: true, data: { ...copy, size: Number(copy.size) } };
     });
 }

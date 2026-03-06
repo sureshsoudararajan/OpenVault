@@ -16,6 +16,7 @@ import { sharingRoutes } from './modules/sharing/routes';
 import { collaborationRoutes } from './modules/collaboration/routes';
 import { searchRoutes } from './modules/search/routes';
 import { dedupRoutes } from './modules/dedup/routes';
+import { tagRoutes } from './modules/tags/routes';
 
 export async function buildApp() {
     const config = loadConfig();
@@ -121,6 +122,7 @@ export async function buildApp() {
             await api.register(collaborationRoutes, { prefix: '/collaboration' });
             await api.register(searchRoutes, { prefix: '/search' });
             await api.register(dedupRoutes, { prefix: '/dedup' });
+            await api.register(tagRoutes, { prefix: '/tags' });
         },
         { prefix: '/api' }
     );

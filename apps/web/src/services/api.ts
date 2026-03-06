@@ -156,6 +156,8 @@ export const fileApi = {
 
     download: (id: string) => request(`/files/${id}/download`),
 
+    getThumbnail: (id: string) => request(`/files/${id}/thumbnail`),
+
     delete: (id: string) => request(`/files/${id}`, { method: 'DELETE' }),
 
     restore: (id: string) => request(`/files/${id}/restore`, { method: 'PATCH' }),
@@ -168,8 +170,15 @@ export const fileApi = {
 
     listTrash: () => request('/files/trash/list'),
 
+    permanentDelete: (id: string) => request(`/files/${id}/permanent`, { method: 'DELETE' }),
+
+    emptyTrash: () => request('/files/trash/empty', { method: 'DELETE' }),
+
     updateContent: (id: string, content: string) =>
         request(`/files/${id}/content`, { method: 'PUT', body: { content } }),
+
+    copy: (id: string, targetFolderId?: string | null) =>
+        request(`/files/${id}/copy`, { method: 'POST', body: { targetFolderId: targetFolderId ?? null } }),
 };
 
 // ============================================
@@ -189,10 +198,41 @@ export const folderApi = {
 
     delete: (id: string) => request(`/folders/${id}`, { method: 'DELETE' }),
 
+    restore: (id: string) => request(`/folders/${id}/restore`, { method: 'PATCH' }),
+
+    permanentDelete: (id: string) => request(`/folders/${id}/permanent`, { method: 'DELETE' }),
+
     getTree: () => request('/folders/tree'),
 
     move: (id: string, newParentId: string | null) =>
         request(`/folders/${id}/move`, { method: 'PATCH', body: { newParentId } }),
+
+    updateColor: (id: string, color: string | null) =>
+        request(`/folders/${id}`, { method: 'PATCH', body: { color } }),
+};
+
+// ============================================
+// Tag APIs
+// ============================================
+
+export const tagApi = {
+    list: () => request('/tags'),
+
+    create: (name: string, color: string) =>
+        request('/tags', { method: 'POST', body: { name, color } }),
+
+    update: (id: string, data: { name?: string; color?: string }) =>
+        request(`/tags/${id}`, { method: 'PATCH', body: data }),
+
+    delete: (id: string) => request(`/tags/${id}`, { method: 'DELETE' }),
+
+    addToFile: (tagId: string, fileId: string) =>
+        request(`/tags/${tagId}/files/${fileId}`, { method: 'POST' }),
+
+    removeFromFile: (tagId: string, fileId: string) =>
+        request(`/tags/${tagId}/files/${fileId}`, { method: 'DELETE' }),
+
+    getFiles: (tagId: string) => request(`/tags/${tagId}/files`),
 };
 
 // ============================================

@@ -49,6 +49,7 @@ model User {
   shareLinksCreated   ShareLink[]
   fileVersions        FileVersion[]
   recoveryCodes       RecoveryCode[]
+  tags                Tag[]
 
   @@map("users")
 }
@@ -97,6 +98,7 @@ model File {
   sha256Hash      String    @map("sha256_hash") @db.VarChar(64)
   storageKey      String    @map("storage_key") @db.VarChar(500)
   encryptionKeyId String?   @map("encryption_key_id") @db.Uuid
+  thumbnailKey    String?   @map("thumbnail_key") @db.VarChar(500)
   currentVersion  Int       @default(1) @map("current_version")
   isTrashed       Boolean   @default(false) @map("is_trashed")
   trashedAt       DateTime? @map("trashed_at")
@@ -110,6 +112,7 @@ model File {
   comments      Comment[]
   permissions   Permission[]  @relation("FilePermissions")
   shareLinks    ShareLink[]   @relation("FileShareLinks")
+  fileTags      FileTag[]
 
   @@index([userId])
   @@index([folderId])
@@ -142,14 +145,17 @@ model FileVersion {
 // ============================================
 
 model Folder {
-  id           String   @id @default(uuid()) @db.Uuid
-  userId       String   @map("user_id") @db.Uuid
-  parentId     String?  @map("parent_id") @db.Uuid
-  name         String   @db.VarChar(255)
-  path         String   @db.VarChar(2000) // materialized path
-  isTeamFolder Boolean  @default(false) @map("is_team_folder")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  parentId     String?   @map("parent_id") @db.Uuid
+  name         String    @db.VarChar(255)
+  path         String    @db.VarChar(2000) // materialized path
+  color        String?   @db.VarChar(7) // hex color like #FF6B6B
+  isTeamFolder Boolean   @default(false) @map("is_team_folder")
+  isTrashed    Boolean   @default(false) @map("is_trashed")
+  trashedAt    DateTime? @map("trashed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   parent      Folder?    @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
@@ -162,6 +168,39 @@ model Folder {
   @@index([parentId])
   @@index([path])
   @@map("folders")
+}
+
+// ============================================
+// Tags
+// ============================================
+
+model Tag {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String   @db.VarChar(50)
+  color     String   @db.VarChar(7) // hex color
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileTags FileTag[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("tags")
+}
+
+model FileTag {
+  id     String @id @default(uuid()) @db.Uuid
+  fileId String @map("file_id") @db.Uuid
+  tagId  String @map("tag_id") @db.Uuid
+
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([fileId, tagId])
+  @@index([fileId])
+  @@index([tagId])
+  @@map("file_tags")
 }
 
 // ============================================

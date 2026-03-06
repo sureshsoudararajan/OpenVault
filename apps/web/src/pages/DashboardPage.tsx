@@ -1,14 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFileManagerStore } from '../stores/fileManagerStore';
 import { fileApi, folderApi, searchApi } from '../services/api';
 import FilePreview from '../components/FilePreview';
+import Thumbnail from '../components/Thumbnail';
 import ShareDialog from '../components/ShareDialog';
 import DetailsDialog from '../components/DetailsDialog';
 import {
     Grid3X3, List, FolderPlus, Upload, ChevronRight,
     FileText, Image, Film, FileArchive, File, MoreVertical,
-    Download, Pencil, Trash2, Share2, FolderOpen, Eye, Copy, Info, Music
+    Download, Pencil, Trash2, Share2, FolderOpen, Eye, Copy, Info, Music,
+    Clipboard, CheckSquare, X
 } from 'lucide-react';
 
 interface FileItem {
@@ -17,18 +19,21 @@ interface FileItem {
     mimeType: string;
     size: number;
     createdAt: string;
+    thumbnailKey?: string | null;
+    fileTags?: { tag: { id: string; name: string; color: string } }[];
 }
 
 interface FolderItem {
     id: string;
     name: string;
+    color?: string | null;
     _count?: { files: number; children: number };
 }
 
 interface ContextMenuState {
     x: number;
     y: number;
-    type: 'file' | 'folder';
+    type: 'file' | 'folder' | 'background';
     id: string;
     name: string;
     mimeType?: string;
@@ -58,7 +63,12 @@ const formatDate = (date: string) =>
 export default function DashboardPage() {
     const { folderId } = useParams();
     const navigate = useNavigate();
-    const { viewMode, setViewMode, setCurrentFolderId, searchQuery } = useFileManagerStore();
+    const {
+        viewMode, setViewMode, setCurrentFolderId, searchQuery,
+        selectedFiles, selectedFolders, toggleFileSelection, toggleFolderSelection,
+        selectAllFiles, clearSelection, clipboard,
+        setClipboard, clearClipboard
+    } = useFileManagerStore();
 
     const [files, setFiles] = useState<FileItem[]>([]);
     const [folders, setFolders] = useState<FolderItem[]>([]);
@@ -73,11 +83,17 @@ export default function DashboardPage() {
     const [renaming, setRenaming] = useState<{ type: 'file' | 'folder'; id: string; name: string } | null>(null);
     const [renameValue, setRenameValue] = useState('');
 
-    // Share dialog state
+    // Share & Details
     const [shareTarget, setShareTarget] = useState<{ id: string; type: 'file' | 'folder'; name: string } | null>(null);
-
-    // Details dialog state
     const [detailsTarget, setDetailsTarget] = useState<{ id: string; type: 'file' | 'folder'; name: string } | null>(null);
+
+    // Drag and drop
+    const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
+    const [showDropOverlay, setShowDropOverlay] = useState(false);
+    const dropOverlayCounter = useRef(0);
+
+    // Paste status
+    const [pasteStatus, setPasteStatus] = useState<string | null>(null);
 
     const loadContent = useCallback(async () => {
         setLoading(true);
@@ -118,18 +134,120 @@ export default function DashboardPage() {
         return () => clearTimeout(timeout);
     }, [folderId, loadContent, setCurrentFolderId, searchQuery]);
 
-    // Right-click handler for files
+    // ---- Keyboard Shortcuts ----
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            // Don't trigger when typing in inputs
+            if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
+
+            // Ctrl+A — Select all
+            if (e.ctrlKey && e.key === 'a') {
+                e.preventDefault();
+                selectAllFiles(files.map(f => f.id));
+            }
+
+            // Ctrl+C — Copy
+            if (e.ctrlKey && e.key === 'c') {
+                e.preventDefault();
+                const items = [
+                    ...Array.from(selectedFiles).map(id => {
+                        const f = files.find(f => f.id === id);
+                        return f ? { id: f.id, type: 'file' as const, name: f.name } : null;
+                    }),
+                    ...Array.from(selectedFolders).map(id => {
+                        const f = folders.find(f => f.id === id);
+                        return f ? { id: f.id, type: 'folder' as const, name: f.name } : null;
+                    }),
+                ].filter(Boolean) as { id: string; type: 'file' | 'folder'; name: string }[];
+
+                if (items.length > 0) {
+                    setClipboard(items, 'copy');
+                    setPasteStatus(`${items.length} item(s) copied`);
+                    setTimeout(() => setPasteStatus(null), 2000);
+                }
+            }
+
+            // Ctrl+V — Paste
+            if (e.ctrlKey && e.key === 'v') {
+                e.preventDefault();
+                handlePaste();
+            }
+
+            // Delete — Move to trash
+            if (e.key === 'Delete') {
+                e.preventDefault();
+                handleBulkDelete();
+            }
+
+            // Escape — Clear selection
+            if (e.key === 'Escape') {
+                clearSelection();
+                setContextMenu(null);
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, [files, folders, selectedFiles, selectedFolders, clipboard, folderId]);
+
+    // ---- Paste handler ----
+    const handlePaste = async () => {
+        if (clipboard.length === 0) return;
+
+        setPasteStatus('Pasting...');
+        try {
+            for (const item of clipboard) {
+                if (item.type === 'file') {
+                    await fileApi.copy(item.id, folderId ?? null);
+                }
+                // Folder copy can be added later
+            }
+            clearClipboard();
+            setPasteStatus('Pasted successfully!');
+            loadContent();
+        } catch (err) {
+            console.error('Paste failed:', err);
+            setPasteStatus('Paste failed');
+        }
+        setTimeout(() => setPasteStatus(null), 2000);
+    };
+
+    // ---- Multi-select click handler ----
+    const handleItemClick = (e: React.MouseEvent, id: string, type: 'file' | 'folder', fileIndex?: number) => {
+        if (renaming?.id === id) return;
+
+        if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            if (type === 'file') toggleFileSelection(id);
+            else toggleFolderSelection(id);
+            return;
+        }
+
+        // Normal click — navigate folder or preview file
+        clearSelection();
+        if (type === 'folder') {
+            navigate(`/folder/${id}`);
+        } else if (fileIndex !== undefined) {
+            setPreviewIndex(fileIndex);
+        }
+    };
+
+    // ---- Context menu handlers ----
     const handleFileContextMenu = (e: React.MouseEvent, file: FileItem, index: number) => {
         e.preventDefault();
         e.stopPropagation();
         setContextMenu({ x: e.clientX, y: e.clientY, type: 'file', id: file.id, name: file.name, mimeType: file.mimeType, fileIndex: index });
     };
 
-    // Right-click handler for folders
     const handleFolderContextMenu = (e: React.MouseEvent, folder: FolderItem) => {
         e.preventDefault();
         e.stopPropagation();
         setContextMenu({ x: e.clientX, y: e.clientY, type: 'folder', id: folder.id, name: folder.name });
+    };
+
+    const handleBackgroundContextMenu = (e: React.MouseEvent) => {
+        if ((e.target as HTMLElement).closest('[data-ctx]')) return;
+        e.preventDefault();
+        setContextMenu({ x: e.clientX, y: e.clientY, type: 'background', id: '', name: '' });
     };
 
     const closeContextMenu = () => setContextMenu(null);
@@ -177,6 +295,23 @@ export default function DashboardPage() {
         closeContextMenu();
     };
 
+    const handleBulkDelete = async () => {
+        const fileIds = Array.from(selectedFiles);
+        const folderIds = Array.from(selectedFolders);
+        if (fileIds.length === 0 && folderIds.length === 0) return;
+
+        try {
+            await Promise.all([
+                ...fileIds.map(id => fileApi.delete(id)),
+                ...folderIds.map(id => folderApi.delete(id)),
+            ]);
+            clearSelection();
+            loadContent();
+        } catch (err) {
+            console.error('Bulk delete failed:', err);
+        }
+    };
+
     const handleDownload = async () => {
         if (!contextMenu || contextMenu.type !== 'file') return;
         try {
@@ -198,13 +333,21 @@ export default function DashboardPage() {
 
     const handleShare = () => {
         if (!contextMenu) return;
-        setShareTarget({ id: contextMenu.id, type: contextMenu.type, name: contextMenu.name });
+        setShareTarget({ id: contextMenu.id, type: contextMenu.type as 'file' | 'folder', name: contextMenu.name });
+        closeContextMenu();
+    };
+
+    const handleCopy = () => {
+        if (!contextMenu || contextMenu.type === 'background') return;
+        setClipboard([{ id: contextMenu.id, type: contextMenu.type, name: contextMenu.name }], 'copy');
+        setPasteStatus('1 item copied');
+        setTimeout(() => setPasteStatus(null), 2000);
         closeContextMenu();
     };
 
     const startRename = () => {
         if (!contextMenu) return;
-        setRenaming({ type: contextMenu.type, id: contextMenu.id, name: contextMenu.name });
+        setRenaming({ type: contextMenu.type as 'file' | 'folder', id: contextMenu.id, name: contextMenu.name });
         setRenameValue(contextMenu.name);
         closeContextMenu();
     };
@@ -224,31 +367,199 @@ export default function DashboardPage() {
         }
     };
 
-    // Ensure context menu doesn't go off screen
+    // ---- Drag & Drop: Internal (move files/folders) ----
+    const handleDragStart = (e: React.DragEvent, id: string, type: 'file' | 'folder', name: string) => {
+        e.dataTransfer.setData('application/openvault', JSON.stringify({ id, type, name }));
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleDragOverFolder = (e: React.DragEvent, fId: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Check if dragging internal item
+        if (e.dataTransfer.types.includes('application/openvault')) {
+            e.dataTransfer.dropEffect = 'move';
+        } else {
+            e.dataTransfer.dropEffect = 'copy';
+        }
+        setDragOverFolderId(fId);
+    };
+
+    const handleDragLeaveFolder = () => {
+        setDragOverFolderId(null);
+    };
+
+    const handleDropOnFolder = async (e: React.DragEvent, targetFolderId: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOverFolderId(null);
+
+        // Internal drag (move)
+        const openvaultData = e.dataTransfer.getData('application/openvault');
+        if (openvaultData) {
+            try {
+                const item = JSON.parse(openvaultData);
+                if (item.id === targetFolderId) return; // Can't drop on itself
+                if (item.type === 'file') {
+                    await fileApi.move(item.id, targetFolderId);
+                } else {
+                    await folderApi.move(item.id, targetFolderId);
+                }
+                loadContent();
+            } catch (err) {
+                console.error('Move failed:', err);
+            }
+            return;
+        }
+
+        // External files dropped on a folder
+        const droppedFiles = e.dataTransfer.files;
+        if (droppedFiles.length > 0) {
+            for (const file of Array.from(droppedFiles)) {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('folderId', targetFolderId);
+                try {
+                    await fileApi.upload(formData);
+                } catch (err) {
+                    console.error('Upload failed:', err);
+                }
+            }
+            loadContent();
+        }
+    };
+
+    const handleDragEnd = () => {
+        setDragOverFolderId(null);
+    };
+
+    // ---- Drag & Drop: Desktop upload overlay ----
+    const handlePageDragEnter = (e: React.DragEvent) => {
+        e.preventDefault();
+        if (e.dataTransfer.types.includes('Files')) {
+            dropOverlayCounter.current += 1;
+            setShowDropOverlay(true);
+        }
+    };
+
+    const handlePageDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        dropOverlayCounter.current -= 1;
+        if (dropOverlayCounter.current <= 0) {
+            dropOverlayCounter.current = 0;
+            setShowDropOverlay(false);
+        }
+    };
+
+    const handlePageDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+    };
+
+    const handlePageDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        setShowDropOverlay(false);
+        dropOverlayCounter.current = 0;
+
+        const droppedFiles = e.dataTransfer.files;
+        if (!droppedFiles.length) return;
+
+        for (const file of Array.from(droppedFiles)) {
+            const formData = new FormData();
+            formData.append('file', file);
+            if (folderId) formData.append('folderId', folderId);
+            try {
+                await fileApi.upload(formData);
+            } catch (err) {
+                console.error('Upload failed:', err);
+            }
+        }
+        loadContent();
+    };
+
+    // Menu position
     const getMenuPosition = (x: number, y: number) => {
-        // Safe estimates for the context menu dimensions
         const menuW = 220;
         const menuH = 320;
-
         const position: React.CSSProperties = {};
-
-        if (x + menuW > window.innerWidth) {
-            position.right = window.innerWidth - x;
-        } else {
-            position.left = x;
-        }
-
-        if (y + menuH > window.innerHeight) {
-            position.bottom = window.innerHeight - y;
-        } else {
-            position.top = y;
-        }
-
+        if (x + menuW > window.innerWidth) { position.right = window.innerWidth - x; } else { position.left = x; }
+        if (y + menuH > window.innerHeight) { position.bottom = window.innerHeight - y; } else { position.top = y; }
         return position;
     };
 
+    const totalSelected = selectedFiles.size + selectedFolders.size;
+
     return (
-        <div className="animate-fade-in" onContextMenu={(e) => { if (!(e.target as HTMLElement).closest('[data-ctx]')) { e.preventDefault(); } }}>
+        <div
+            className="animate-fade-in relative"
+            onContextMenu={handleBackgroundContextMenu}
+            onDragEnter={handlePageDragEnter}
+            onDragLeave={handlePageDragLeave}
+            onDragOver={handlePageDragOver}
+            onDrop={handlePageDrop}
+        >
+            {/* Desktop Drop Overlay */}
+            {showDropOverlay && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-500/10 backdrop-blur-sm border-4 border-dashed border-brand-400 rounded-2xl pointer-events-none animate-fade-in">
+                    <div className="text-center">
+                        <Upload className="h-16 w-16 text-brand-400 mx-auto mb-3 animate-bounce" />
+                        <p className="text-lg font-semibold text-brand-400">Drop files to upload</p>
+                        <p className="text-sm text-surface-400 mt-1">Files will be uploaded to the current folder</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Paste Status Toast */}
+            {pasteStatus && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-surface-800 border border-surface-700 text-sm text-white shadow-xl flex items-center gap-2 animate-slide-up">
+                    <Clipboard className="h-4 w-4 text-brand-400" />
+                    {pasteStatus}
+                </div>
+            )}
+
+            {/* Selection Bar */}
+            {totalSelected > 0 && (
+                <div className="mb-4 flex items-center gap-3 rounded-xl bg-brand-500/10 border border-brand-500/20 px-4 py-2.5 animate-slide-down">
+                    <CheckSquare className="h-4 w-4 text-brand-400" />
+                    <span className="text-sm font-medium text-brand-400">{totalSelected} selected</span>
+                    <div className="flex-1" />
+                    {clipboard.length === 0 && (
+                        <button
+                            onClick={() => {
+                                const items = [
+                                    ...Array.from(selectedFiles).map(id => {
+                                        const f = files.find(f => f.id === id);
+                                        return f ? { id, type: 'file' as const, name: f.name } : null;
+                                    }),
+                                    ...Array.from(selectedFolders).map(id => {
+                                        const f = folders.find(f => f.id === id);
+                                        return f ? { id, type: 'folder' as const, name: f.name } : null;
+                                    }),
+                                ].filter(Boolean) as { id: string; type: 'file' | 'folder'; name: string }[];
+                                if (items.length > 0) {
+                                    setClipboard(items, 'copy');
+                                    setPasteStatus(`${items.length} item(s) copied`);
+                                    setTimeout(() => setPasteStatus(null), 2000);
+                                }
+                            }}
+                            className="btn-ghost text-xs flex items-center gap-1.5 text-brand-400"
+                        >
+                            <Copy className="h-3.5 w-3.5" /> Copy
+                        </button>
+                    )}
+                    <button
+                        onClick={handleBulkDelete}
+                        className="btn-ghost text-xs flex items-center gap-1.5 text-red-400"
+                    >
+                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                    </button>
+                    <button onClick={clearSelection} className="btn-ghost text-xs text-surface-400">
+                        <X className="h-3.5 w-3.5" />
+                    </button>
+                </div>
+            )}
+
             {/* Header */}
             <div className="mb-6 flex items-center justify-between">
                 <div>
@@ -268,6 +579,13 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {/* Paste button (when clipboard has items) */}
+                    {clipboard.length > 0 && (
+                        <button onClick={handlePaste} className="btn-secondary flex items-center gap-1.5 text-sm px-3 py-1.5 text-brand-400 border-brand-500/30">
+                            <Clipboard className="h-4 w-4" /> Paste ({clipboard.length})
+                        </button>
+                    )}
+
                     <div className="flex rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-100/50 dark:bg-surface-800/50 p-0.5">
                         <button
                             onClick={() => setViewMode('grid')}
@@ -327,15 +645,22 @@ export default function DashboardPage() {
                                     <div
                                         key={folder.id}
                                         data-ctx="folder"
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, folder.id, 'folder', folder.name)}
+                                        onDragEnd={handleDragEnd}
+                                        onDragOver={(e) => handleDragOverFolder(e, folder.id)}
+                                        onDragLeave={handleDragLeaveFolder}
+                                        onDrop={(e) => handleDropOnFolder(e, folder.id)}
                                         onContextMenu={(e) => handleFolderContextMenu(e, folder)}
-                                        onClick={() => {
-                                            if (renaming?.id === folder.id) return;
-                                            navigate(`/folder/${folder.id}`);
-                                        }}
-                                        className={`file-card group flex items-center gap-3 text-left w-full cursor-pointer ${viewMode === 'list' ? 'rounded-lg' : ''}`}
+                                        onClick={(e) => handleItemClick(e, folder.id, 'folder')}
+                                        className={`file-card group flex items-center gap-3 text-left w-full cursor-pointer transition-all
+                                            ${viewMode === 'list' ? 'rounded-lg' : ''}
+                                            ${selectedFolders.has(folder.id) ? 'ring-2 ring-brand-500 bg-brand-500/10' : ''}
+                                            ${dragOverFolderId === folder.id ? 'ring-2 ring-brand-400 bg-brand-500/20 scale-[1.02]' : ''}
+                                        `}
                                     >
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10">
-                                            <FolderOpen className="h-5 w-5 text-brand-400" />
+                                        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${!folder.color ? 'bg-brand-500/10' : ''}`} style={folder.color ? { backgroundColor: `${folder.color}20` } : undefined}>
+                                            <FolderOpen className={`h-5 w-5 ${!folder.color ? 'text-brand-400' : ''}`} style={folder.color ? { color: folder.color } : undefined} />
                                         </div>
                                         <div className="min-w-0 flex-1">
                                             {renaming?.id === folder.id ? (
@@ -379,12 +704,21 @@ export default function DashboardPage() {
                                         <div
                                             key={file.id}
                                             data-ctx="file"
-                                            className="file-card group relative cursor-pointer"
-                                            onClick={() => setPreviewIndex(index)}
+                                            draggable
+                                            onDragStart={(e) => handleDragStart(e, file.id, 'file', file.name)}
+                                            onDragEnd={handleDragEnd}
+                                            className={`file-card group relative cursor-pointer transition-all
+                                                ${selectedFiles.has(file.id) ? 'ring-2 ring-brand-500 bg-brand-500/10' : ''}
+                                            `}
+                                            onClick={(e) => handleItemClick(e, file.id, 'file', index)}
                                             onContextMenu={(e) => handleFileContextMenu(e, file, index)}
                                         >
                                             <div className="mb-3 flex justify-center py-4">
-                                                {getFileIcon(file.mimeType)}
+                                                {file.thumbnailKey ? (
+                                                    <Thumbnail fileId={file.id} mimeType={file.mimeType} className="h-16 w-16 mx-auto rounded-lg shadow-sm ring-1 ring-surface-200 dark:ring-surface-700" />
+                                                ) : (
+                                                    getFileIcon(file.mimeType)
+                                                )}
                                             </div>
                                             {renaming?.id === file.id ? (
                                                 <div onClick={(e) => e.stopPropagation()}>
@@ -401,7 +735,28 @@ export default function DashboardPage() {
                                                 <>
                                                     <p className="truncate text-sm font-medium text-surface-900 dark:text-white">{file.name}</p>
                                                     <p className="mt-0.5 text-xs text-surface-500">{formatSize(file.size)}</p>
+                                                    {file.fileTags && file.fileTags.length > 0 && (
+                                                        <div className="mt-1 flex flex-wrap gap-1">
+                                                            {file.fileTags.slice(0, 3).map(ft => (
+                                                                <span key={ft.tag.id} className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{ backgroundColor: `${ft.tag.color}20`, color: ft.tag.color }}>
+                                                                    {ft.tag.name}
+                                                                </span>
+                                                            ))}
+                                                            {file.fileTags.length > 3 && <span className="text-[10px] text-surface-500">+{file.fileTags.length - 3}</span>}
+                                                        </div>
+                                                    )}
                                                 </>
+                                            )}
+                                            {/* Selection checkbox overlay */}
+                                            {(selectedFiles.size > 0 || selectedFolders.size > 0) && (
+                                                <div
+                                                    className={`absolute top-2 left-2 h-5 w-5 rounded border-2 flex items-center justify-center transition-colors
+                                                        ${selectedFiles.has(file.id) ? 'bg-brand-500 border-brand-500' : 'border-surface-500 bg-surface-800/50'}
+                                                    `}
+                                                    onClick={(e) => { e.stopPropagation(); toggleFileSelection(file.id); }}
+                                                >
+                                                    {selectedFiles.has(file.id) && <CheckSquare className="h-3 w-3 text-white" />}
+                                                </div>
                                             )}
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleFileContextMenu(e, file, index); }}
@@ -418,11 +773,32 @@ export default function DashboardPage() {
                                         <div
                                             key={file.id}
                                             data-ctx="file"
-                                            className="file-card flex items-center gap-4 rounded-lg py-2 px-3 cursor-pointer"
-                                            onClick={() => setPreviewIndex(index)}
+                                            draggable
+                                            onDragStart={(e) => handleDragStart(e, file.id, 'file', file.name)}
+                                            onDragEnd={handleDragEnd}
+                                            className={`file-card flex items-center gap-4 rounded-lg py-2 px-3 cursor-pointer transition-all
+                                                ${selectedFiles.has(file.id) ? 'ring-2 ring-brand-500 bg-brand-500/10' : ''}
+                                            `}
+                                            onClick={(e) => handleItemClick(e, file.id, 'file', index)}
                                             onContextMenu={(e) => handleFileContextMenu(e, file, index)}
                                         >
-                                            {getFileIcon(file.mimeType)}
+                                            {(selectedFiles.size > 0 || selectedFolders.size > 0) && (
+                                                <div
+                                                    className={`h-5 w-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors
+                                                        ${selectedFiles.has(file.id) ? 'bg-brand-500 border-brand-500' : 'border-surface-500'}
+                                                    `}
+                                                    onClick={(e) => { e.stopPropagation(); toggleFileSelection(file.id); }}
+                                                >
+                                                    {selectedFiles.has(file.id) && <CheckSquare className="h-3 w-3 text-white" />}
+                                                </div>
+                                            )}
+                                            {file.thumbnailKey ? (
+                                                <div className="h-8 w-8 flex-shrink-0 flex items-center justify-center rounded overflow-hidden bg-surface-100 dark:bg-surface-800">
+                                                    <Thumbnail fileId={file.id} mimeType={file.mimeType} className="h-full w-full object-cover" />
+                                                </div>
+                                            ) : (
+                                                getFileIcon(file.mimeType)
+                                            )}
                                             <div className="min-w-0 flex-1">
                                                 {renaming?.id === file.id ? (
                                                     <div onClick={(e) => e.stopPropagation()}>
@@ -462,6 +838,7 @@ export default function DashboardPage() {
                             </div>
                             <h3 className="text-lg font-medium text-surface-300">No files yet</h3>
                             <p className="mt-1 text-sm text-surface-500">Upload files or create a folder to get started</p>
+                            <p className="mt-1 text-xs text-surface-600">You can also drag & drop files here</p>
                             <label className="btn-primary mt-4 flex cursor-pointer items-center gap-2 text-sm">
                                 <Upload className="h-4 w-4" /> Upload Files
                                 <input type="file" multiple className="hidden" onChange={handleUpload} />
@@ -479,61 +856,97 @@ export default function DashboardPage() {
                         className="fixed z-50 w-52 rounded-xl border border-surface-200 dark:border-surface-700 bg-white/80 dark:bg-surface-900/95 py-1.5 shadow-xl backdrop-blur-md animate-scale-in"
                         style={getMenuPosition(contextMenu.x, contextMenu.y)}
                     >
-                        {/* Header */}
-                        <div className="border-b border-surface-200 dark:border-surface-700 px-3 py-2 mb-1">
-                            <p className="truncate text-xs font-medium text-surface-900 dark:text-surface-300">{contextMenu.name}</p>
-                            <p className="text-[10px] text-surface-500 capitalize">{contextMenu.type}</p>
-                        </div>
+                        {contextMenu.type === 'background' ? (
+                            <>
+                                {/* Background context menu */}
+                                {clipboard.length > 0 && (
+                                    <button onClick={() => { handlePaste(); closeContextMenu(); }} className="dropdown-item w-full">
+                                        <Clipboard className="h-4 w-4" /> Paste ({clipboard.length} items)
+                                    </button>
+                                )}
+                                <button onClick={() => { setShowNewFolderInput(true); closeContextMenu(); }} className="dropdown-item w-full">
+                                    <FolderPlus className="h-4 w-4" /> New Folder
+                                </button>
+                                <label className="dropdown-item w-full cursor-pointer">
+                                    <Upload className="h-4 w-4" /> Upload Files
+                                    <input type="file" multiple className="hidden" onChange={(e) => { handleUpload(e); closeContextMenu(); }} />
+                                </label>
+                            </>
+                        ) : (
+                            <>
+                                {/* Header */}
+                                <div className="border-b border-surface-200 dark:border-surface-700 px-3 py-2 mb-1">
+                                    <p className="truncate text-xs font-medium text-surface-900 dark:text-surface-300">{contextMenu.name}</p>
+                                    <p className="text-[10px] text-surface-500 capitalize">{contextMenu.type}</p>
+                                </div>
 
-                        {/* File-only: Preview */}
-                        {contextMenu.type === 'file' && (
-                            <button onClick={handlePreview} className="dropdown-item w-full">
-                                <Eye className="h-4 w-4" /> Preview
-                            </button>
+                                {/* File-only: Preview */}
+                                {contextMenu.type === 'file' && (
+                                    <button onClick={handlePreview} className="dropdown-item w-full">
+                                        <Eye className="h-4 w-4" /> Preview
+                                    </button>
+                                )}
+
+                                {/* File-only: Download */}
+                                {contextMenu.type === 'file' && (
+                                    <button onClick={handleDownload} className="dropdown-item w-full">
+                                        <Download className="h-4 w-4" /> Download
+                                    </button>
+                                )}
+
+                                {/* Folder: Open */}
+                                {contextMenu.type === 'folder' && (
+                                    <button onClick={() => { navigate(`/folder/${contextMenu.id}`); closeContextMenu(); }} className="dropdown-item w-full">
+                                        <FolderOpen className="h-4 w-4" /> Open
+                                    </button>
+                                )}
+
+                                <hr className="my-1 border-surface-200 dark:border-surface-700" />
+
+                                {/* Share */}
+                                <button onClick={handleShare} className="dropdown-item w-full">
+                                    <Share2 className="h-4 w-4" /> Share
+                                </button>
+
+                                {/* Rename */}
+                                <button onClick={startRename} className="dropdown-item w-full">
+                                    <Pencil className="h-4 w-4" /> Rename
+                                </button>
+
+                                {/* Copy */}
+                                <button onClick={handleCopy} className="dropdown-item w-full">
+                                    <Copy className="h-4 w-4" /> Copy
+                                </button>
+
+                                {/* Paste into folder */}
+                                {contextMenu.type === 'folder' && clipboard.length > 0 && (
+                                    <button onClick={async () => {
+                                        for (const item of clipboard) {
+                                            if (item.type === 'file') {
+                                                await fileApi.copy(item.id, contextMenu.id);
+                                            }
+                                        }
+                                        clearClipboard();
+                                        closeContextMenu();
+                                        loadContent();
+                                    }} className="dropdown-item w-full">
+                                        <Clipboard className="h-4 w-4" /> Paste Here
+                                    </button>
+                                )}
+
+                                {/* Details */}
+                                <button onClick={() => { setDetailsTarget({ id: contextMenu.id, type: contextMenu.type as 'file' | 'folder', name: contextMenu.name }); closeContextMenu(); }} className="dropdown-item w-full">
+                                    <Info className="h-4 w-4" /> Details
+                                </button>
+
+                                <hr className="my-1 border-surface-700" />
+
+                                {/* Delete */}
+                                <button onClick={handleDelete} className="dropdown-item w-full text-red-400 hover:text-red-300">
+                                    <Trash2 className="h-4 w-4" /> Move to Trash
+                                </button>
+                            </>
                         )}
-
-                        {/* File-only: Download */}
-                        {contextMenu.type === 'file' && (
-                            <button onClick={handleDownload} className="dropdown-item w-full">
-                                <Download className="h-4 w-4" /> Download
-                            </button>
-                        )}
-
-                        {/* Folder: Open */}
-                        {contextMenu.type === 'folder' && (
-                            <button onClick={() => { navigate(`/folder/${contextMenu.id}`); closeContextMenu(); }} className="dropdown-item w-full">
-                                <FolderOpen className="h-4 w-4" /> Open
-                            </button>
-                        )}
-
-                        <hr className="my-1 border-surface-200 dark:border-surface-700" />
-
-                        {/* Share */}
-                        <button onClick={handleShare} className="dropdown-item w-full">
-                            <Share2 className="h-4 w-4" /> Share
-                        </button>
-
-                        {/* Rename */}
-                        <button onClick={startRename} className="dropdown-item w-full">
-                            <Pencil className="h-4 w-4" /> Rename
-                        </button>
-
-                        {/* Copy (placeholder) */}
-                        <button onClick={closeContextMenu} className="dropdown-item w-full">
-                            <Copy className="h-4 w-4" /> Copy
-                        </button>
-
-                        {/* Details */}
-                        <button onClick={() => { setDetailsTarget({ id: contextMenu.id, type: contextMenu.type, name: contextMenu.name }); closeContextMenu(); }} className="dropdown-item w-full">
-                            <Info className="h-4 w-4" /> Details
-                        </button>
-
-                        <hr className="my-1 border-surface-700" />
-
-                        {/* Delete */}
-                        <button onClick={handleDelete} className="dropdown-item w-full text-red-400 hover:text-red-300">
-                            <Trash2 className="h-4 w-4" /> Move to Trash
-                        </button>
                     </div>
                 </>
             )}
