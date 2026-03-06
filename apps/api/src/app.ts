@@ -88,7 +88,7 @@ export async function buildApp() {
         // More robust detection for ZodError
         const isZodError =
             error instanceof ZodError ||
-            error.name === 'ZodError' ||
+            (error as any).name === 'ZodError' ||
             (error as any).issues ||
             (error as any).errors;
 

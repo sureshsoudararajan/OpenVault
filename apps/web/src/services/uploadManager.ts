@@ -52,8 +52,6 @@ export async function uploadFile(file: File, options: UploadOptions = {}): Promi
         // Step 2: Upload directly to MinIO using XHR for progress tracking
         await new Promise<void>((resolve, reject) => {
             const xhr = new XMLHttpRequest();
-            let lastLoaded = 0;
-            let lastTime = Date.now();
             const SPEED_WINDOW = 2000; // 2s rolling window
             const speedSamples: { loaded: number; time: number }[] = [];
 
@@ -89,9 +87,6 @@ export async function uploadFile(file: File, options: UploadOptions = {}): Promi
                     speed: Math.round(speed),
                     eta: Math.round(eta),
                 });
-
-                lastLoaded = event.loaded;
-                lastTime = now;
             });
 
             xhr.addEventListener('load', () => {

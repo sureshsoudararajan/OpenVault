@@ -360,7 +360,7 @@ async function createSession(userId: string, email: string, role: string, ipAddr
 
 function generateAccessToken(userId: string, email: string, role: string): string {
     return jwt.sign({ sub: userId, email, role }, config.jwt.accessSecret, {
-        expiresIn: config.jwt.accessExpiry,
+        expiresIn: config.jwt.accessExpiry as any,
     });
 }
 

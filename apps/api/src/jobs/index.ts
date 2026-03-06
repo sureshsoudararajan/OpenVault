@@ -32,10 +32,10 @@ export async function initWorkers(config: AppConfig): Promise<void> {
     connection = new IORedis(config.redis.url, { maxRetriesPerRequest: null });
 
     // Create queues
-    fileProcessingQueue = new Queue(QUEUE_NAMES.FILE_PROCESSING, { connection });
-    thumbnailQueue = new Queue(QUEUE_NAMES.THUMBNAIL, { connection });
-    dedupScanQueue = new Queue(QUEUE_NAMES.DEDUP_SCAN, { connection });
-    trashCleanupQueue = new Queue(QUEUE_NAMES.TRASH_CLEANUP, { connection });
+    fileProcessingQueue = new Queue(QUEUE_NAMES.FILE_PROCESSING, { connection: connection as any });
+    thumbnailQueue = new Queue(QUEUE_NAMES.THUMBNAIL, { connection: connection as any });
+    dedupScanQueue = new Queue(QUEUE_NAMES.DEDUP_SCAN, { connection: connection as any });
+    trashCleanupQueue = new Queue(QUEUE_NAMES.TRASH_CLEANUP, { connection: connection as any });
 
     // ---- File Processing Worker ----
     new Worker(
@@ -55,7 +55,7 @@ export async function initWorkers(config: AppConfig): Promise<void> {
                     console.warn(`Unknown file processing action: ${action}`);
             }
         },
-        { connection, concurrency: 3 }
+        { connection: connection as any, concurrency: 3 }
     );
 
     // ---- Thumbnail Worker ----
@@ -100,7 +100,7 @@ export async function initWorkers(config: AppConfig): Promise<void> {
                     const writeStream = (await import('fs')).createWriteStream(tempVideoPath);
                     await new Promise((resolve, reject) => {
                         (fileStream as Stream).pipe(writeStream);
-                        writeStream.on('finish', resolve);
+                        writeStream.on('finish', () => resolve(undefined));
                         writeStream.on('error', reject);
                     });
 
@@ -154,7 +154,7 @@ export async function initWorkers(config: AppConfig): Promise<void> {
                 }
             }
         },
-        { connection, concurrency: 2 }
+        { connection: connection as any, concurrency: 2 }
     );
 
     // ---- Dedup Scan Worker ----
@@ -167,7 +167,7 @@ export async function initWorkers(config: AppConfig): Promise<void> {
             // TODO: Check for duplicate files by hash
             // Mark duplicates in the database
         },
-        { connection, concurrency: 1 }
+        { connection: connection as any, concurrency: 1 }
     );
 
     // ---- Trash Cleanup Worker (30-day auto-delete) ----
@@ -237,7 +237,7 @@ export async function initWorkers(config: AppConfig): Promise<void> {
                 console.log('🗑️  No expired trash items found');
             }
         },
-        { connection, concurrency: 1 }
+        { connection: connection as any, concurrency: 1 }
     );
 
     // Schedule trash cleanup to run every day at 3:00 AM

@@ -91,7 +91,7 @@ export async function collaborationRoutes(app: FastifyInstance) {
     app.get('/ws', { websocket: true, preHandler: [authGuard] }, (socket, request) => {
         const userId = request.userId;
 
-        socket.on('message', (rawMessage) => {
+        socket.on('message', (rawMessage: any) => {
             try {
                 const message = JSON.parse(rawMessage.toString());
 
