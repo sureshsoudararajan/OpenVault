@@ -22,7 +22,7 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U openvault"]
+      test: [ "CMD-SHELL", "pg_isready -U openvault" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -46,7 +46,7 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -56,12 +56,13 @@ services:
     image: minio/minio
     container_name: openvault-minio
     restart: unless-stopped
-    ports:
-      - "9000:9000"
-      # - "9001:9001" # Removed for production
+    # ports:
+    #   - "9000:9000" # Removed for production — traffic routed through nginx /storage/ proxy
+    # - "9001:9001" # Removed for production
     environment:
       MINIO_ROOT_USER: openvault_minio
       MINIO_ROOT_PASSWORD: openvault_minio_secret
+      MINIO_API_CORS_ALLOW_ORIGIN: "http://localhost:3000,http://localhost:5173"
     volumes:
       - minio-data:/data
     command: server /data --console-address ":9001"
@@ -75,7 +76,7 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: [ "CMD", "mc", "ready", "local" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -119,6 +120,8 @@ services:
       MINIO_ENDPOINT: minio
       MINIO_PORT: "9000"
       MEILI_HOST: http://meilisearch:7700
+      FRONTEND_URL: http://localhost:3000
+      NODE_ENV: production
     depends_on:
       postgres:
         condition: service_healthy
@@ -138,6 +141,7 @@ services:
       - "3000:3000"
     depends_on:
       - api
+      - minio
 
 volumes:
   pgdata:

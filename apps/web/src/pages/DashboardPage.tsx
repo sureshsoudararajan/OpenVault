@@ -7,7 +7,6 @@ import Thumbnail from '../components/Thumbnail';
 import ShareDialog from '../components/ShareDialog';
 import DetailsDialog from '../components/DetailsDialog';
 import TagDialog from '../components/TagDialog';
-import UploadProgressPanel from '../components/UploadProgressPanel';
 import { uploadFiles } from '../services/uploadManager';
 import {
     Grid3X3, List, FolderPlus, Upload, ChevronRight,
@@ -169,7 +168,14 @@ function DashboardPage() {
     useEffect(() => {
         setCurrentFolderId(folderId || null);
         const timeout = setTimeout(() => { loadContent(); }, searchQuery ? 300 : 0);
-        return () => clearTimeout(timeout);
+
+        const handleRefresh = () => loadContent();
+        window.addEventListener('refresh-files', handleRefresh);
+
+        return () => {
+            clearTimeout(timeout);
+            window.removeEventListener('refresh-files', handleRefresh);
+        };
     }, [folderId, loadContent, setCurrentFolderId, searchQuery, selectedTag]);
 
     // Keyboard shortcuts
@@ -793,7 +799,6 @@ function DashboardPage() {
                 />
             )}
             {tagTarget && <TagDialog fileId={tagTarget.id} fileName={tagTarget.name} initialTags={tagTarget.fileTags || []} onClose={() => setTagTarget(null)} onTagsUpdated={() => loadContent()} />}
-            <UploadProgressPanel />
         </div>
     );
 }

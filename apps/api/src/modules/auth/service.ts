@@ -159,7 +159,7 @@ export async function generateMfaSecret(userId: string) {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
     if (!user) throw new Error('User not found');
 
-    const secret = authenticator.generateSecret(32);
+    const secret = authenticator.generateSecret(20);
     const otpauthUrl = authenticator.keyuri(user.email, 'OpenVault', secret);
 
     // Generate Base64 QR Code

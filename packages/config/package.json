@@ -4,15 +4,21 @@
     "private": true,
     "type": "module",
     "exports": {
-        ".": "./src/index.ts"
+        ".": {
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs"
+        }
     },
-    "main": "./src/index.ts",
-    "types": "./src/index.ts",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
     "scripts": {
-        "build": "tsc",
+        "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+        "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
         "lint": "tsc --noEmit"
     },
     "devDependencies": {
+        "tsup": "^8.5.1",
         "typescript": "^5.4.0"
     }
 }

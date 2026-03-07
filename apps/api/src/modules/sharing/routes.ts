@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import prisma from '../../db/index';
 import { authGuard } from '../../middleware/auth';
 import { generateUrlSafeToken } from '@openvault/crypto';
-import { getPresignedDownloadUrl, getPresignedUploadUrl } from '../../storage/minio';
+import { getPresignedDownloadUrl, getPresignedUploadUrl, rewriteMinioUrl } from '../../storage/minio';
 import { loadConfig } from '@openvault/config';
 import argon2 from 'argon2';
 import { z } from 'zod';
@@ -297,7 +297,8 @@ export async function sharingRoutes(app: FastifyInstance) {
             return reply.status(400).send({ success: false, error: { code: 'NO_FILE', message: 'No file specified' } });
         }
 
-        const downloadUrl = await getPresignedDownloadUrl(config.minio.bucket, storageKey, 300);
+        const rawDownloadUrl = await getPresignedDownloadUrl(config.minio.bucket, storageKey, 300);
+        const downloadUrl = rewriteMinioUrl(rawDownloadUrl);
 
         // Increment download count
         await prisma.shareLink.update({
@@ -371,7 +372,8 @@ export async function sharingRoutes(app: FastifyInstance) {
             return reply.status(400).send({ success: false, error: { code: 'NO_FILE', message: 'No file specified' } });
         }
 
-        const previewUrl = await getPresignedDownloadUrl(config.minio.bucket, storageKey, 300);
+        const rawPreviewUrl = await getPresignedDownloadUrl(config.minio.bucket, storageKey, 300);
+        const previewUrl = rewriteMinioUrl(rawPreviewUrl);
 
         return { success: true, data: { previewUrl, fileName, mimeType, fileSize } };
     });
@@ -587,7 +589,8 @@ export async function sharingRoutes(app: FastifyInstance) {
             return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Shared file not found or access expired' } });
         }
 
-        const downloadUrl = await getPresignedDownloadUrl(config.minio.bucket, permission.file.storageKey, 300);
+        const rawDownloadUrl = await getPresignedDownloadUrl(config.minio.bucket, permission.file.storageKey, 300);
+        const downloadUrl = rewriteMinioUrl(rawDownloadUrl);
 
         await prisma.activityLog.create({
             data: {
@@ -624,7 +627,8 @@ export async function sharingRoutes(app: FastifyInstance) {
             return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Thumbnail not found' } });
         }
 
-        const downloadUrl = await getPresignedDownloadUrl(config.minio.bucket, permission.file.thumbnailKey, 300);
+        const rawThumbnailUrl = await getPresignedDownloadUrl(config.minio.bucket, permission.file.thumbnailKey, 300);
+        const downloadUrl = rewriteMinioUrl(rawThumbnailUrl);
         return { success: true, data: { downloadUrl } };
     });
 

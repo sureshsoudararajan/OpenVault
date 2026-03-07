@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import prisma from '../../db/index';
 import { authGuard } from '../../middleware/auth';
 import { loadConfig } from '@openvault/config';
-import { getPresignedDownloadUrl } from '../../storage/minio';
+import { getPresignedDownloadUrl, rewriteMinioUrl } from '../../storage/minio';
 
 const config = loadConfig();
 
@@ -40,7 +40,8 @@ export async function versionRoutes(app: FastifyInstance) {
             return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Version not found' } });
         }
 
-        const downloadUrl = await getPresignedDownloadUrl(config.minio.bucket, version.storageKey, 300);
+        const rawDownloadUrl = await getPresignedDownloadUrl(config.minio.bucket, version.storageKey, 300);
+        const downloadUrl = rewriteMinioUrl(rawDownloadUrl);
         return { success: true, data: { downloadUrl } };
     });
 

@@ -129,8 +129,23 @@ export async function uploadFile(file: File, options: UploadOptions = {}): Promi
         onComplete?.(completeRes.data);
         return completeRes.data;
     } catch (err: any) {
-        const errorMsg = err.message || 'Upload failed';
+        let errorMsg = 'Upload failed';
+        if (err.message?.includes('Network error')) {
+            errorMsg = 'Network error — unable to reach storage server';
+        } else if (err.message?.includes('Storage upload failed')) {
+            errorMsg = `Storage error: ${err.message}`;
+        } else if (err.message?.includes('Upload cancelled')) {
+            errorMsg = 'Upload cancelled';
+        } else if (err.message) {
+            errorMsg = err.message;
+        }
         store.updateUpload(id, { status: 'error', error: errorMsg });
+
+        // Auto-remove error entry after 8 seconds so user can read it
+        setTimeout(() => {
+            useUploadStore.getState().removeUpload(id);
+        }, 8000);
+
         onError?.(file.name, errorMsg);
         throw err;
     }

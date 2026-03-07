@@ -3,23 +3,30 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy workspace root
+# Copy root package files
 COPY package.json package-lock.json* ./
 COPY tsconfig.base.json ./
 
-# Copy shared packages
+# Copy ALL package.jsons for workspace resolution
+COPY packages/config/package.json ./packages/config/
+COPY packages/crypto/package.json ./packages/crypto/
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY apps/api/package.json ./apps/api/
+
+# Install dependencies (Cached unless package.jsons change)
+RUN npm install --include-workspace-root
+
+# Copy source
 COPY packages/ ./packages/
-
-# Copy API source
 COPY apps/api/ ./apps/api/
-
-# Install all dependencies
-RUN npm install --workspace=apps/api --include-workspace-root
 
 # Generate Prisma Client
 RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
 
-# Build
+# Build shared packages
+RUN npm run build --workspace=packages/config --workspace=packages/crypto --workspace=packages/shared-types
+
+# Build API
 RUN npm run build --workspace=apps/api
 
 # ---- Production Stage ----

@@ -45,7 +45,7 @@ export const sendActivationEmail = async (email: string, name: string, activatio
 
     try {
         const info = await transporter.sendMail({
-            from: '"OpenVault" <noreply@openvault.com>',
+            from: `"OpenVault" <${config.smtp?.user}>`,
             to: email,
             subject: 'Activate Your OpenVault Account',
             html: htmlContent,

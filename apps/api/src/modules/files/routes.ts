@@ -3,7 +3,7 @@ import prisma from '../../db/index';
 import { authGuard } from '../../middleware/auth';
 import { loadConfig } from '@openvault/config';
 import { sha256 } from '@openvault/crypto';
-import { uploadObject, buildStorageKey, getPresignedDownloadUrl, deleteObject, getPresignedUploadUrl, objectExists } from '../../storage/minio';
+import { uploadObject, buildStorageKey, getPresignedDownloadUrl, deleteObject, getPresignedUploadUrl, objectExists, rewriteMinioUrl } from '../../storage/minio';
 import { enqueueThumbnail, enqueueDedupScan } from '../../jobs/index';
 import { z } from 'zod';
 
@@ -47,7 +47,8 @@ export async function fileRoutes(app: FastifyInstance) {
 
         // Build a temporary storage key using timestamp to avoid collisions (will be finalised on complete)
         const tempKey = buildStorageKey(request.userId, body.folderId || null, `${Date.now()}-${body.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
-        const uploadUrl = await getPresignedUploadUrl(config.minio.bucket, tempKey, 7200); // 2 hours
+        const rawUploadUrl = await getPresignedUploadUrl(config.minio.bucket, tempKey, 7200); // 2 hours
+        const uploadUrl = rewriteMinioUrl(rawUploadUrl);
 
         return {
             success: true,
@@ -270,7 +271,8 @@ export async function fileRoutes(app: FastifyInstance) {
             return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'File not found' } });
         }
 
-        const downloadUrl = await getPresignedDownloadUrl(config.minio.bucket, file.storageKey, 300);
+        const rawDownloadUrl = await getPresignedDownloadUrl(config.minio.bucket, file.storageKey, 300);
+        const downloadUrl = rewriteMinioUrl(rawDownloadUrl);
 
         // Log download
         await prisma.activityLog.create({
@@ -298,7 +300,8 @@ export async function fileRoutes(app: FastifyInstance) {
             return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Thumbnail not found' } });
         }
 
-        const downloadUrl = await getPresignedDownloadUrl(config.minio.bucket, file.thumbnailKey, 3600);
+        const rawThumbnailUrl = await getPresignedDownloadUrl(config.minio.bucket, file.thumbnailKey, 3600);
+        const downloadUrl = rewriteMinioUrl(rawThumbnailUrl);
         return { success: true, data: { downloadUrl } };
     });
 

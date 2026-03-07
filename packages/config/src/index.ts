@@ -23,6 +23,7 @@ export interface AppConfig {
         secretKey: string;
         bucket: string;
         useSSL: boolean;
+        publicEndpoint?: string;
     };
 
     meili: {
@@ -76,28 +77,29 @@ export function loadConfig(): AppConfig {
     return {
         nodeEnv: env('NODE_ENV', 'development'),
         port: envInt('PORT', 4000),
-        frontendUrl: env('FRONTEND_URL', 'http://localhost:5173'),
-        apiUrl: env('API_URL', 'http://localhost:4000'),
+        frontendUrl: env('FRONTEND_URL', 'http://127.0.0.1:5173'),
+        apiUrl: env('API_URL', 'http://127.0.0.1:4000'),
 
         database: {
             url: env('DATABASE_URL'),
         },
 
         redis: {
-            url: env('REDIS_URL', 'redis://localhost:6379'),
+            url: env('REDIS_URL', 'redis://127.0.0.1:6379'),
         },
 
         minio: {
-            endpoint: env('MINIO_ENDPOINT', 'localhost'),
+            endpoint: env('MINIO_ENDPOINT', '127.0.0.1'),
             port: envInt('MINIO_PORT', 9000),
             accessKey: env('MINIO_ACCESS_KEY', 'openvault_minio'),
             secretKey: env('MINIO_SECRET_KEY', 'openvault_minio_secret'),
             bucket: env('MINIO_BUCKET', 'openvault-files'),
             useSSL: envBool('MINIO_USE_SSL', false),
+            publicEndpoint: env('MINIO_PUBLIC_URL', 'http://127.0.0.1:9000'),
         },
 
         meili: {
-            host: env('MEILI_HOST', 'http://localhost:7700'),
+            host: env('MEILI_HOST', 'http://127.0.0.1:7700'),
             masterKey: env('MEILI_MASTER_KEY', ''),
         },
 

@@ -7,7 +7,7 @@ import crypto from 'crypto';
 import argon2 from 'argon2';
 import { updateUserSchema } from './schema';
 import { loadConfig } from '@openvault/config';
-import { uploadObject, getPresignedDownloadUrl } from '../../storage/minio';
+import { uploadObject, getPresignedDownloadUrl, rewriteMinioUrl } from '../../storage/minio';
 
 const config = loadConfig();
 
@@ -147,22 +147,20 @@ export async function userRoutes(app: FastifyInstance) {
             return reply.status(400).send({ success: false, error: { code: 'INVALID_TYPE', message: 'Must be an image' } });
         }
 
-        const chunks: Buffer[] = [];
-        for await (const chunk of data.file) {
-            chunks.push(chunk);
-        }
-        const fileBuffer = Buffer.concat(chunks);
-
         // Upload to avatars directory in Minio
         const ext = data.filename.split('.').pop() || 'png';
         const objectKey = `avatars/${request.userId}-${crypto.randomUUID()}.${ext}`;
+
+        // Stream directly to Minio (request.file().file is a stream)
+        const fileBuffer = await data.toBuffer();
 
         await uploadObject(config.minio.bucket, objectKey, fileBuffer, {
             'Content-Type': data.mimetype,
         });
 
         // Generate public or long-lived presigned URL
-        const avatarUrl = await getPresignedDownloadUrl(config.minio.bucket, objectKey, 7 * 24 * 60 * 60);
+        const rawAvatarUrl = await getPresignedDownloadUrl(config.minio.bucket, objectKey, 7 * 24 * 60 * 60);
+        const avatarUrl = rewriteMinioUrl(rawAvatarUrl);
 
         const user = await prisma.user.update({
             where: { id: request.userId },

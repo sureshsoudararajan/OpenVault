@@ -2,7 +2,9 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useFileManagerStore } from '../stores/fileManagerStore';
 import { useThemeStore } from '../stores/themeStore';
-import { fileApi, tagApi } from '../services/api';
+import { tagApi } from '../services/api';
+import { uploadFiles } from '../services/uploadManager';
+import UploadProgressPanel from '../components/UploadProgressPanel';
 import {
     FolderOpen, Trash2, Share2, Settings, Search, Upload, LogOut,
     Shield, HardDrive, Menu, X, ChevronDown, Sun, Moon, Tag as TagIcon
@@ -37,22 +39,22 @@ export default function AppShell() {
 
         // Extract current folderId from URL if on a folder page
         const folderMatch = location.pathname.match(/\/folder\/(.+)/);
-        const folderId = folderMatch?.[1];
+        const folderId = folderMatch?.[1] || null;
 
-        for (const file of Array.from(fileList)) {
-            const formData = new FormData();
-            formData.append('file', file);
-            if (folderId) formData.append('folderId', folderId);
-            try {
-                await fileApi.upload(formData);
-            } catch (err) {
-                console.error('Upload failed:', err);
-            }
+        try {
+            await uploadFiles(fileList, {
+                folderId,
+                onComplete: () => {
+                    // Refresh current view if possible
+                    window.dispatchEvent(new CustomEvent('refresh-files'));
+                }
+            });
+        } catch (err) {
+            console.error('Upload process failed:', err);
         }
+
         // Reset input so same file can be re-uploaded
         e.target.value = '';
-        // Reload the page to reflect new files
-        window.location.reload();
     };
 
     const handleLogout = () => {
@@ -228,6 +230,8 @@ export default function AppShell() {
                     <Outlet />
                 </main>
             </div>
+            {/* Global upload progress panel */}
+            <UploadProgressPanel />
         </div>
     );
 }
