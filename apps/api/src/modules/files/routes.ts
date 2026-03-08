@@ -193,14 +193,46 @@ export async function fileRoutes(app: FastifyInstance) {
 
 
     // GET /api/files — List files in a folder (or root)
-    app.get('/', { preHandler: [authGuard] }, async (request) => {
+    app.get('/', { preHandler: [authGuard] }, async (request, reply) => {
         const { folderId, page = 1, perPage = 50, sortBy = 'createdAt', sortOrder = 'desc' } = request.query as any;
 
-        const where = {
-            userId: request.userId,
+        if (folderId) {
+            const folder = await prisma.folder.findUnique({
+                where: { id: folderId },
+                select: { userId: true, path: true }
+            });
+
+            if (!folder) {
+                return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Folder not found' } });
+            }
+
+            let hasAccess = folder.userId === request.userId;
+            if (!hasAccess) {
+                const pathIds = folder.path.split('/').filter(Boolean);
+                pathIds.push(folderId);
+                const perm = await prisma.permission.findFirst({
+                    where: {
+                        grantedToId: request.userId,
+                        folderId: { in: pathIds }
+                    }
+                });
+                if (perm) hasAccess = true;
+            }
+
+            if (!hasAccess) {
+                return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Folder not found' } });
+            }
+        }
+
+        const where: any = {
             folderId: folderId || null,
             isTrashed: false,
         };
+
+        // Only enforce ownership if viewing root files where there isn't a shared folder context
+        if (!folderId) {
+            where.userId = request.userId;
+        }
 
         const [files, total] = await Promise.all([
             prisma.file.findMany({

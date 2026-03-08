@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { sharingApi } from '../services/api';
 import {
     Share2, Loader2, File, Folder, Image, Film, FileText,
@@ -53,6 +54,7 @@ export default function SharedPage() {
     const [view, setView] = useState<'grid' | 'list'>('grid');
     const [search, setSearch] = useState('');
     const [previewFile, setPreviewFile] = useState<NonNullable<SharedItem['file']> | null>(null);
+    const navigate = useNavigate();
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -168,7 +170,7 @@ export default function SharedPage() {
                                 : 'space-y-2'
                             }>
                                 {folderItems.map((item) => (
-                                    <FolderCard key={item.permissionId} item={item} view={view} />
+                                    <FolderCard key={item.permissionId} item={item} view={view} navigate={navigate} />
                                 ))}
                             </div>
                         </section>
@@ -330,14 +332,14 @@ function FileListRow({ item, onPreview }: { item: SharedItem; onPreview: (f: Fil
     );
 }
 
-function FolderCard({ item, view }: { item: SharedItem; view: 'grid' | 'list' }) {
+function FolderCard({ item, view, navigate }: { item: SharedItem; view: 'grid' | 'list'; navigate: (path: string) => void }) {
     const folder = item.folder!;
     const color = folder.color || '#6366f1';
 
     if (view === 'list') {
         return (
             <div
-                onClick={() => window.location.href = `/?folder=${folder.id}`}
+                onClick={() => navigate(`/folder/${folder.id}`)}
                 className="flex items-center gap-3 rounded-xl border border-surface-200 dark:border-surface-700/60 bg-white dark:bg-surface-800/60 px-4 py-2.5 transition-all hover:shadow-sm cursor-pointer"
             >
                 <div className="flex-shrink-0 h-8 w-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: color + '20' }}>
@@ -362,7 +364,7 @@ function FolderCard({ item, view }: { item: SharedItem; view: 'grid' | 'list' })
 
     return (
         <div
-            onClick={() => window.location.href = `/?folder=${folder.id}`}
+            onClick={() => navigate(`/folder/${folder.id}`)}
             className="group relative flex flex-col rounded-xl border border-surface-200 dark:border-surface-700/60 bg-white dark:bg-surface-800/60 overflow-hidden cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5"
             style={{ borderTopColor: color, borderTopWidth: '3px' }}
         >

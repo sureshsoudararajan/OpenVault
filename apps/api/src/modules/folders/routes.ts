@@ -108,13 +108,53 @@ export async function folderRoutes(app: FastifyInstance) {
     });
 
     // GET /api/folders — List folders in a parent (or root), excluding trashed
-    app.get('/', { preHandler: [authGuard] }, async (request) => {
+    app.get('/', { preHandler: [authGuard] }, async (request, reply) => {
         const { parentId } = request.query as { parentId?: string };
+
+        if (!parentId) {
+            // Root directories always belong to the user
+            const folders = await prisma.folder.findMany({
+                where: {
+                    userId: request.userId,
+                    parentId: null,
+                    isTrashed: false,
+                },
+                orderBy: { name: 'asc' },
+                include: { _count: { select: { files: true, children: true } } },
+            });
+            return { success: true, data: folders };
+        }
+
+        // Verify access to parent folder
+        const parent = await prisma.folder.findUnique({
+            where: { id: parentId },
+            select: { userId: true, path: true }
+        });
+
+        if (!parent) {
+            return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Parent folder not found' } });
+        }
+
+        let hasAccess = parent.userId === request.userId;
+        if (!hasAccess) {
+            const pathIds = parent.path.split('/').filter(Boolean);
+            pathIds.push(parentId);
+            const perm = await prisma.permission.findFirst({
+                where: {
+                    grantedToId: request.userId,
+                    folderId: { in: pathIds }
+                }
+            });
+            if (perm) hasAccess = true;
+        }
+
+        if (!hasAccess) {
+            return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Parent folder not found' } });
+        }
 
         const folders = await prisma.folder.findMany({
             where: {
-                userId: request.userId,
-                parentId: parentId || null,
+                parentId,
                 isTrashed: false,
             },
             orderBy: { name: 'asc' },
@@ -143,8 +183,34 @@ export async function folderRoutes(app: FastifyInstance) {
     app.get('/:id', { preHandler: [authGuard] }, async (request, reply) => {
         const { id } = request.params as { id: string };
 
-        const folder = await prisma.folder.findFirst({
-            where: { id, userId: request.userId },
+        const tempFolder = await prisma.folder.findUnique({
+            where: { id },
+            select: { userId: true, path: true }
+        });
+
+        if (!tempFolder) {
+            return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Folder not found' } });
+        }
+
+        let hasAccess = tempFolder.userId === request.userId;
+        if (!hasAccess) {
+            const pathIds = tempFolder.path.split('/').filter(Boolean);
+            pathIds.push(id);
+            const perm = await prisma.permission.findFirst({
+                where: {
+                    grantedToId: request.userId,
+                    folderId: { in: pathIds }
+                }
+            });
+            if (perm) hasAccess = true;
+        }
+
+        if (!hasAccess) {
+            return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Folder not found' } });
+        }
+
+        const folder = await prisma.folder.findUnique({
+            where: { id },
             include: {
                 children: {
                     where: { isTrashed: false },
@@ -173,8 +239,8 @@ export async function folderRoutes(app: FastifyInstance) {
         const ancestors: { id: string; name: string }[] = [];
         let currentParentId = folder.parentId;
         while (currentParentId) {
-            const parent = await prisma.folder.findFirst({
-                where: { id: currentParentId, userId: request.userId },
+            const parent = await prisma.folder.findUnique({
+                where: { id: currentParentId },
                 select: { id: true, name: true, parentId: true },
             });
             if (!parent) break;
