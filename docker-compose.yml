@@ -62,7 +62,7 @@ services:
     environment:
       MINIO_ROOT_USER: openvault_minio
       MINIO_ROOT_PASSWORD: openvault_minio_secret
-      MINIO_API_CORS_ALLOW_ORIGIN: "http://localhost:3000,http://localhost:5173"
+      MINIO_API_CORS_ALLOW_ORIGIN: "*"
     volumes:
       - minio-data:/data
     command: server /data --console-address ":9001"

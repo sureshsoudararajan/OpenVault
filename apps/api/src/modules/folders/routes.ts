@@ -153,7 +153,7 @@ export async function folderRoutes(app: FastifyInstance) {
                 },
                 files: {
                     where: { isTrashed: false },
-                    select: { id: true, name: true, mimeType: true, size: true, createdAt: true },
+                    select: { id: true, name: true, mimeType: true, size: true, createdAt: true, thumbnailKey: true },
                     orderBy: { name: 'asc' },
                 },
                 _count: {

@@ -41,6 +41,9 @@ COPY --from=builder /app/apps/api/dist/ ./apps/api/dist/
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/apps/api/prisma/ ./apps/api/prisma/
 
+# Install ffmpeg for video thumbnail generation
+RUN apk add --no-cache ffmpeg
+
 ENV NODE_ENV=production
 EXPOSE 4000
 
