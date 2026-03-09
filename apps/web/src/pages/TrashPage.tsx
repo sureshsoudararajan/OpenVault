@@ -81,6 +81,7 @@ export default function TrashPage() {
         setDeletingId(id);
         try {
             await fileApi.permanentDelete(id);
+            window.dispatchEvent(new CustomEvent('refresh-profile'));
             load();
         } finally {
             setDeletingId(null);
@@ -91,6 +92,7 @@ export default function TrashPage() {
         setDeletingId(id);
         try {
             await folderApi.permanentDelete(id);
+            window.dispatchEvent(new CustomEvent('refresh-profile'));
             load();
         } finally {
             setDeletingId(null);
@@ -101,6 +103,7 @@ export default function TrashPage() {
         setEmptyingTrash(true);
         try {
             await fileApi.emptyTrash();
+            window.dispatchEvent(new CustomEvent('refresh-profile'));
             setShowEmptyConfirm(false);
             load();
         } finally {

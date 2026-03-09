@@ -242,6 +242,8 @@ export const tagApi = {
         request(`/tags/${tagId}/files/${fileId}`, { method: 'DELETE' }),
 
     getFiles: (tagId: string) => request(`/tags/${tagId}/files`),
+    reorder: (tags: { id: string; order: number }[]) =>
+        request('/tags/reorder', { method: 'PATCH', body: { tags } }),
 };
 
 // ============================================

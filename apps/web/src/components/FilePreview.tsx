@@ -258,6 +258,7 @@ function NotepadEditor({ url, fileId }: { url: string; fileId: string }) {
         setSaving(true);
         try {
             await fileApi.updateContent(fileId, content);
+            window.dispatchEvent(new CustomEvent('refresh-profile'));
             setOriginalContent(content);
             setSaved(true);
             setEditing(false);
@@ -365,6 +366,7 @@ function MarkdownPreview({ url, fileId }: { url: string; fileId: string }) {
         setSaving(true);
         try {
             await fileApi.updateContent(fileId, content);
+            window.dispatchEvent(new CustomEvent('refresh-profile'));
             setOriginalContent(content);
             setSaved(true);
             setTimeout(() => setSaved(false), 2000);

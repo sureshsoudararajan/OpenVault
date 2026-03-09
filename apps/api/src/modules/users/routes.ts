@@ -39,46 +39,36 @@ function getDiskSpace(): { total: number; free: number; used: number } {
 }
 
 export async function userRoutes(app: FastifyInstance) {
-    // GET /api/users/me — Current user profile with dynamic storage info
-    app.get('/me', { preHandler: [authGuard] }, async (request) => {
-        const [user, storageAgg] = await Promise.all([
-            prisma.user.findUnique({
-                where: { id: request.userId },
-                select: {
-                    id: true,
-                    email: true,
-                    name: true,
-                    avatarUrl: true,
-                    role: true,
-                    mfaEnabled: true,
-                    secondaryEmail: true,
-                    storageQuota: true,
-                    storageUsed: true,
-                    createdAt: true,
-                },
-            }),
-            // Calculate actual storage used from files
-            prisma.file.aggregate({
-                where: { userId: request.userId, trashedAt: null },
-                _sum: { size: true },
-            }),
-        ]);
+    app.get('/me', { preHandler: [authGuard] }, async (request, reply) => {
+        const user = await prisma.user.findUnique({
+            where: { id: request.userId },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                avatarUrl: true,
+                role: true,
+                mfaEnabled: true,
+                secondaryEmail: true,
+                storageQuota: true,
+                storageUsed: true,
+                createdAt: true,
+            },
+        });
 
-        // Get disk space from device
+        if (!user) {
+            return reply.status(401).send({ success: false, error: { code: 'UNAUTHORIZED', message: 'User not found' } });
+        }
+
+        // Get disk space from device for admin/system visibility
         const disk = getDiskSpace();
-
-        // Actual bytes used by this user's files
-        const actualUsed = Number(storageAgg._sum.size || 0);
-
-        // Use device free disk space as the quota (total available to this user)
-        const deviceQuota = disk.free + actualUsed; // free space + what they already use
 
         return {
             success: true,
             data: {
                 ...user,
-                storageQuota: deviceQuota,
-                storageUsed: actualUsed,
+                storageQuota: Number(user.storageQuota),
+                storageUsed: Number(user.storageUsed),
                 disk: {
                     total: disk.total,
                     free: disk.free,

@@ -131,7 +131,7 @@ export default function TagDialog({ fileId, fileName, initialTags, onClose, onTa
                                         <div
                                             key={tag.id}
                                             onClick={() => handleToggleTag(tag.id)}
-                                            className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all ${assignedTagIds.has(tag.id)
+                                            className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all group ${assignedTagIds.has(tag.id)
                                                 ? 'bg-brand-500/10 border-brand-500/30'
                                                 : 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 hover:border-surface-300'
                                                 }`}

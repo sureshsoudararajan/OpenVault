@@ -180,6 +180,7 @@ model Tag {
   userId    String   @map("user_id") @db.Uuid
   name      String   @db.VarChar(50)
   color     String   @db.VarChar(7) // hex color
+  order     Int      @default(0)
   createdAt DateTime @default(now()) @map("created_at")
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)

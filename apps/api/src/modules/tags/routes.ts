@@ -11,6 +11,14 @@ const createTagSchema = z.object({
 const updateTagSchema = z.object({
     name: z.string().min(1).max(50).optional(),
     color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+    order: z.number().int().optional(),
+});
+
+const reorderTagsSchema = z.object({
+    tags: z.array(z.object({
+        id: z.string().uuid(),
+        order: z.number().int(),
+    })),
 });
 
 export async function tagRoutes(app: FastifyInstance) {
@@ -38,10 +46,27 @@ export async function tagRoutes(app: FastifyInstance) {
         const tags = await prisma.tag.findMany({
             where: { userId: request.userId },
             include: { _count: { select: { fileTags: true } } },
-            orderBy: { name: 'asc' },
+            orderBy: [{ order: 'asc' }, { name: 'asc' }],
         });
 
         return { success: true, data: tags };
+    });
+
+    // PATCH /api/tags/reorder — Update multiple tag orders
+    app.patch('/reorder', { preHandler: [authGuard] }, async (request) => {
+        const { tags } = reorderTagsSchema.parse(request.body);
+
+        // Update each tag's order in a transaction
+        await prisma.$transaction(
+            tags.map((t) =>
+                prisma.tag.updateMany({
+                    where: { id: t.id, userId: request.userId },
+                    data: { order: t.order },
+                })
+            )
+        );
+
+        return { success: true };
     });
 
     // PATCH /api/tags/:id — Update a tag

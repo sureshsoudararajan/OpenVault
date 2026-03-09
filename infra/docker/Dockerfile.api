@@ -32,6 +32,9 @@ RUN npm run build --workspace=apps/api
 # ---- Production Stage ----
 FROM node:20-alpine AS production
 
+# Install ffmpeg for video thumbnail generation before copying code to cache it
+RUN apk add --no-cache ffmpeg
+
 WORKDIR /app
 
 COPY --from=builder /app/package.json ./
@@ -40,9 +43,6 @@ COPY --from=builder /app/packages/ ./packages/
 COPY --from=builder /app/apps/api/dist/ ./apps/api/dist/
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/apps/api/prisma/ ./apps/api/prisma/
-
-# Install ffmpeg for video thumbnail generation
-RUN apk add --no-cache ffmpeg
 
 ENV NODE_ENV=production
 EXPOSE 4000

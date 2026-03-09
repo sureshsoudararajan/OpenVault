@@ -208,7 +208,9 @@ export async function fileRoutes(app: FastifyInstance) {
 
             let hasAccess = folder.userId === request.userId;
             if (!hasAccess) {
-                const pathIds = folder.path.split('/').filter(Boolean);
+                const pathIds = (folder.path || '').split('/')
+                    .filter(Boolean)
+                    .filter(id => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
                 pathIds.push(folderId);
                 const perm = await prisma.permission.findFirst({
                     where: {
@@ -259,6 +261,9 @@ export async function fileRoutes(app: FastifyInstance) {
             prisma.file.count({ where }),
         ]);
 
+        console.log(`[DEBUG] GET /api/files - folderId: ${folderId}, req_user: ${request.userId}, hasAccess checks passed. Query where:`, where);
+        console.log(`[DEBUG] GET /api/files - Returned ${files.length} files. Total: ${total}`);
+
         return {
             success: true,
             data: files.map((f) => ({ ...f, size: Number(f.size) })),
@@ -270,7 +275,7 @@ export async function fileRoutes(app: FastifyInstance) {
     app.get('/:id', { preHandler: [authGuard] }, async (request, reply) => {
         const { id } = request.params as { id: string };
         const file = await prisma.file.findFirst({
-            where: { id, userId: request.userId },
+            where: { id },
             include: {
                 versions: { orderBy: { versionNumber: 'desc' }, take: 5 },
                 folder: { select: { id: true, name: true, path: true } },
@@ -278,6 +283,37 @@ export async function fileRoutes(app: FastifyInstance) {
         });
 
         if (!file) {
+            return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'File not found' } });
+        }
+
+        let hasAccess = file.userId === request.userId;
+
+        if (!hasAccess && file.folderId && file.folder) {
+            const pathIds = (file.folder.path || '').split('/')
+                .filter(Boolean)
+                .filter(fid => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(fid));
+            pathIds.push(file.folderId);
+
+            const perm = await prisma.permission.findFirst({
+                where: {
+                    grantedToId: request.userId,
+                    folderId: { in: pathIds }
+                }
+            });
+            if (perm) hasAccess = true;
+        }
+
+        if (!hasAccess) {
+            const filePerm = await prisma.permission.findFirst({
+                where: {
+                    grantedToId: request.userId,
+                    fileId: id
+                }
+            });
+            if (filePerm) hasAccess = true;
+        }
+
+        if (!hasAccess) {
             return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'File not found' } });
         }
 
@@ -295,11 +331,42 @@ export async function fileRoutes(app: FastifyInstance) {
     app.get('/:id/download', { preHandler: [authGuard] }, async (request, reply) => {
         const { id } = request.params as { id: string };
         const file = await prisma.file.findFirst({
-            where: { id, userId: request.userId },
-            select: { storageKey: true, name: true },
+            where: { id },
+            select: { storageKey: true, name: true, userId: true, folderId: true, folder: { select: { path: true } } },
         });
 
         if (!file) {
+            return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'File not found' } });
+        }
+
+        let hasAccess = file.userId === request.userId;
+
+        if (!hasAccess && file.folderId && file.folder) {
+            const pathIds = (file.folder.path || '').split('/')
+                .filter(Boolean)
+                .filter(fid => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(fid));
+            pathIds.push(file.folderId);
+
+            const perm = await prisma.permission.findFirst({
+                where: {
+                    grantedToId: request.userId,
+                    folderId: { in: pathIds }
+                }
+            });
+            if (perm) hasAccess = true;
+        }
+
+        if (!hasAccess) {
+            const filePerm = await prisma.permission.findFirst({
+                where: {
+                    grantedToId: request.userId,
+                    fileId: id
+                }
+            });
+            if (filePerm) hasAccess = true;
+        }
+
+        if (!hasAccess) {
             return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'File not found' } });
         }
 
@@ -324,11 +391,42 @@ export async function fileRoutes(app: FastifyInstance) {
     app.get('/:id/thumbnail', { preHandler: [authGuard] }, async (request, reply) => {
         const { id } = request.params as { id: string };
         const file = await prisma.file.findFirst({
-            where: { id, userId: request.userId },
-            select: { thumbnailKey: true },
+            where: { id },
+            select: { thumbnailKey: true, userId: true, folderId: true, folder: { select: { path: true } } },
         });
 
         if (!file || !file.thumbnailKey) {
+            return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Thumbnail not found' } });
+        }
+
+        let hasAccess = file.userId === request.userId;
+
+        if (!hasAccess && file.folderId && file.folder) {
+            const pathIds = (file.folder.path || '').split('/')
+                .filter(Boolean)
+                .filter(fid => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(fid));
+            pathIds.push(file.folderId);
+
+            const perm = await prisma.permission.findFirst({
+                where: {
+                    grantedToId: request.userId,
+                    folderId: { in: pathIds }
+                }
+            });
+            if (perm) hasAccess = true;
+        }
+
+        if (!hasAccess) {
+            const filePerm = await prisma.permission.findFirst({
+                where: {
+                    grantedToId: request.userId,
+                    fileId: id
+                }
+            });
+            if (filePerm) hasAccess = true;
+        }
+
+        if (!hasAccess) {
             return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Thumbnail not found' } });
         }
 
@@ -556,15 +654,51 @@ export async function fileRoutes(app: FastifyInstance) {
         }
 
         const file = await prisma.file.findFirst({
-            where: { id, userId: request.userId },
-            select: { id: true, storageKey: true, name: true, mimeType: true, currentVersion: true },
+            where: { id },
+            select: { id: true, storageKey: true, name: true, mimeType: true, size: true, currentVersion: true, userId: true, folderId: true, folder: { select: { path: true } } },
         });
 
         if (!file) {
             return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'File not found' } });
         }
 
+        let hasAccess = file.userId === request.userId;
+
+        if (!hasAccess && file.folderId && file.folder) {
+            const pathIds = (file.folder.path || '').split('/')
+                .filter(Boolean)
+                .filter(fid => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(fid));
+            pathIds.push(file.folderId);
+
+            const perm = await prisma.permission.findFirst({
+                where: {
+                    grantedToId: request.userId,
+                    folderId: { in: pathIds },
+                    role: 'editor'
+                }
+            });
+            if (perm) hasAccess = true;
+        }
+
+        if (!hasAccess) {
+            const filePerm = await prisma.permission.findFirst({
+                where: {
+                    grantedToId: request.userId,
+                    fileId: id,
+                    role: 'editor'
+                }
+            });
+            if (filePerm) hasAccess = true;
+        }
+
+        if (!hasAccess) {
+            return reply.status(403).send({ success: false, error: { code: 'FORBIDDEN', message: 'You do not have permission to edit this file' } });
+        }
+
         const fileBuffer = Buffer.from(content, 'utf-8');
+        const newSize = BigInt(fileBuffer.length);
+        const oldSize = file.size;
+        const delta = newSize - oldSize;
         const hash = sha256(fileBuffer);
         const newVersion = file.currentVersion + 1;
 
@@ -577,11 +711,17 @@ export async function fileRoutes(app: FastifyInstance) {
         await prisma.file.update({
             where: { id },
             data: {
-                size: BigInt(fileBuffer.length),
+                size: newSize,
                 sha256Hash: hash,
                 currentVersion: newVersion,
                 updatedAt: new Date(),
             },
+        });
+
+        // Update user storage usage
+        await prisma.user.update({
+            where: { id: file.userId },
+            data: { storageUsed: { increment: delta } },
         });
 
         // Create new version
@@ -589,7 +729,7 @@ export async function fileRoutes(app: FastifyInstance) {
             data: {
                 fileId: id,
                 versionNumber: newVersion,
-                size: BigInt(fileBuffer.length),
+                size: newSize,
                 sha256Hash: hash,
                 storageKey: file.storageKey,
                 createdBy: request.userId,

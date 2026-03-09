@@ -74,13 +74,13 @@ export async function folderRoutes(app: FastifyInstance) {
         const { name, parentId, color } = createFolderSchema.parse(request.body);
 
         // Build materialized path
-        let path = `/${name}`;
+        let path = '';
         if (parentId) {
             const parent = await prisma.folder.findFirst({ where: { id: parentId, userId: request.userId } });
             if (!parent) {
                 return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Parent folder not found' } });
             }
-            path = `${parent.path}/${name}`;
+            path = parent.path ? `${parent.path}/${parent.id}` : `/${parent.id}`;
         }
 
         const folder = await prisma.folder.create({
@@ -137,7 +137,9 @@ export async function folderRoutes(app: FastifyInstance) {
 
         let hasAccess = parent.userId === request.userId;
         if (!hasAccess) {
-            const pathIds = parent.path.split('/').filter(Boolean);
+            const pathIds = (parent.path || '').split('/')
+                .filter(Boolean)
+                .filter(id => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
             pathIds.push(parentId);
             const perm = await prisma.permission.findFirst({
                 where: {
@@ -194,7 +196,9 @@ export async function folderRoutes(app: FastifyInstance) {
 
         let hasAccess = tempFolder.userId === request.userId;
         if (!hasAccess) {
-            const pathIds = tempFolder.path.split('/').filter(Boolean);
+            const pathIds = (tempFolder.path || '').split('/')
+                .filter(Boolean)
+                .filter(id => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
             pathIds.push(id);
             const perm = await prisma.permission.findFirst({
                 where: {
@@ -402,15 +406,13 @@ export async function folderRoutes(app: FastifyInstance) {
         const { newParentId } = request.body as { newParentId: string | null };
 
         // Rebuild path
-        let newPath: string;
+        let newPath = '';
         const folder = await prisma.folder.findUnique({ where: { id } });
         if (!folder) throw new Error('Folder not found');
 
         if (newParentId) {
             const parent = await prisma.folder.findUnique({ where: { id: newParentId } });
-            newPath = `${parent?.path}/${folder.name}`;
-        } else {
-            newPath = `/${folder.name}`;
+            newPath = parent?.path ? `${parent.path}/${newParentId}` : `/${newParentId}`;
         }
 
         const updated = await prisma.folder.update({

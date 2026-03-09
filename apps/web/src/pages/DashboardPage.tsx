@@ -99,6 +99,8 @@ function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [showNewFolderInput, setShowNewFolderInput] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const folderInputRef = useRef<HTMLInputElement>(null);
     const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
     const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
@@ -146,6 +148,8 @@ function DashboardPage() {
                     fileApi.list(folderId),
                     folderApi.list(folderId),
                 ]) as any[];
+                console.log("[DEBUG] Dashboard loaded files:", filesRes);
+                console.log("[DEBUG] Dashboard loaded folders:", foldersRes);
                 setFiles(filesRes.data || []);
                 setFolders(foldersRes.data || []);
                 const crumbs: { id: string | null; name: string }[] = [{ id: null, name: 'My Files' }];
@@ -204,6 +208,7 @@ function DashboardPage() {
         setPasteStatus('Pasting...');
         try {
             for (const item of clipboard) { if (item.type === 'file') await fileApi.copy(item.id, folderId ?? null); }
+            window.dispatchEvent(new CustomEvent('refresh-profile'));
             clearClipboard(); setPasteStatus('Pasted successfully!'); loadContent();
         } catch (err) { console.error('Paste failed:', err); setPasteStatus('Paste failed'); }
         setTimeout(() => setPasteStatus(null), 2000);
@@ -229,12 +234,64 @@ function DashboardPage() {
 
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const fileList = e.target.files; if (!fileList?.length) return;
-        // Reset input so same file can be picked again
-        e.target.value = '';
-        await uploadFiles(fileList, {
-            folderId: folderId || null,
-            onComplete: () => loadContent(),
-        });
+        
+        try {
+            await uploadFiles(fileList, {
+                folderId: folderId || null,
+                onComplete: () => loadContent(),
+            });
+        } finally {
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const handleFolderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const fileList = e.target.files;
+        if (!fileList?.length) return;
+
+        const files = Array.from(fileList);
+        const folderCache = new Map<string, string>(); // path -> folderId
+
+        setLoading(true);
+        try {
+            for (const file of files) {
+                const parts = (file as any).webkitRelativePath.split('/');
+                parts.pop();
+                const pathParts = parts; // The folders above the file
+
+                let currentParentId = folderId || null;
+                let currentPath = "";
+
+                // Walk through path parts and create folders as needed
+                for (const part of pathParts) {
+                    currentPath = currentPath ? `${currentPath}/${part}` : part;
+                    if (folderCache.has(currentPath)) {
+                        currentParentId = folderCache.get(currentPath)!;
+                    } else {
+                        // Create folder
+                        const res: any = await folderApi.create({
+                            name: part,
+                            parentId: currentParentId ?? undefined
+                        });
+                        const newFolderId = res.data.id;
+                        folderCache.set(currentPath, newFolderId);
+                        currentParentId = newFolderId;
+                    }
+                }
+
+                // Upload the file to the leaf folder
+                await uploadFiles([file], {
+                    folderId: currentParentId,
+                    onComplete: () => { /* cumulative refresh handled by loadContent */ }
+                });
+            }
+            loadContent();
+        } catch (err) {
+            console.error('Folder upload failed:', err);
+        } finally {
+            setLoading(false);
+            if (folderInputRef.current) folderInputRef.current.value = '';
+        }
     };
 
     const handleDelete = async () => { if (!contextMenu) return; try { if (contextMenu.type === 'file') await fileApi.delete(contextMenu.id); else await folderApi.delete(contextMenu.id); loadContent(); } catch (err) { console.error('Delete failed:', err); } closeContextMenu(); };
@@ -386,8 +443,7 @@ function DashboardPage() {
                                     <Clipboard className="h-4 w-4" /> Paste ({clipboard.length})
                                 </button>
                             )}
-                            <button
-                                onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                            <button onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
                                 className="btn-ghost p-2.5 rounded-xl border border-gray-200 dark:border-gray-700"
                                 title={viewMode === 'grid' ? 'Switch to List View' : 'Switch to Grid View'}
                             >
@@ -396,12 +452,20 @@ function DashboardPage() {
                             <button onClick={() => setShowNewFolderInput(true)} className="btn-secondary flex items-center gap-2 text-sm">
                                 <FolderPlus className="h-4 w-4" /> New Folder
                             </button>
-                            <label className="btn-primary cursor-pointer flex items-center gap-2 text-sm">
-                                <Upload className="h-4 w-4" /> Upload
-                                <input type="file" multiple className="hidden" onChange={handleUpload} />
-                            </label>
+                            <div className="flex gap-1">
+                                <button onClick={() => fileInputRef.current?.click()} className="btn-primary flex items-center gap-2 text-sm !rounded-r-none border-r border-white/20">
+                                    <Upload className="h-4 w-4" /> Upload
+                                </button>
+                                <button onClick={() => folderInputRef.current?.click()} className="btn-primary flex items-center justify-center px-3 !rounded-l-none" title="Upload Folder">
+                                    <FolderOpen className="h-4 w-4" />
+                                </button>
+                            </div>
                         </div>
                     </div>
+
+                    {/* Hidden Inputs */}
+                    <input type="file" ref={fileInputRef} className="hidden" multiple onChange={handleUpload} />
+                    <input type="file" ref={folderInputRef} className="hidden" {...({ webkitdirectory: "", directory: "" } as any)} onChange={handleFolderUpload} />
 
                     {/* New Folder Input */}
                     {showNewFolderInput && (
@@ -684,10 +748,9 @@ function DashboardPage() {
                                     Upload files or create a folder to get started.
                                 </p>
                                 <div className="flex gap-3">
-                                    <label className="btn-primary cursor-pointer flex items-center gap-2 text-sm">
+                                    <button onClick={() => fileInputRef.current?.click()} className="btn-primary flex items-center gap-2 text-sm">
                                         <Upload className="h-4 w-4" /> Upload Files
-                                        <input type="file" multiple className="hidden" onChange={handleUpload} />
-                                    </label>
+                                    </button>
                                     <button onClick={() => setShowNewFolderInput(true)} className="btn-secondary flex items-center gap-2 text-sm">
                                         <FolderPlus className="h-4 w-4" /> New Folder
                                     </button>
@@ -713,10 +776,9 @@ function DashboardPage() {
                                 <button onClick={() => { setShowNewFolderInput(true); closeContextMenu(); }} className="menu-item">
                                     <FolderPlus className="h-4 w-4" /> New Folder
                                 </button>
-                                <label className="menu-item cursor-pointer">
+                                <button onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); closeContextMenu(); }} className="menu-item">
                                     <Upload className="h-4 w-4" /> Upload Files
-                                    <input type="file" multiple className="hidden" onChange={(e) => { handleUpload(e); closeContextMenu(); }} />
-                                </label>
+                                </button>
                             </div>
                         ) : (
                             <div>
@@ -799,6 +861,15 @@ function DashboardPage() {
                 />
             )}
             {tagTarget && <TagDialog fileId={tagTarget.id} fileName={tagTarget.name} initialTags={tagTarget.fileTags || []} onClose={() => setTagTarget(null)} onTagsUpdated={() => loadContent()} />}
+            
+            {/* Global Hidden File Input */}
+            <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                multiple 
+                onChange={handleUpload} 
+            />
         </div>
     );
 }

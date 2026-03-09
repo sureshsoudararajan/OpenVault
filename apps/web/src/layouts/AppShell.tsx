@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useFileManagerStore } from '../stores/fileManagerStore';
 import { useThemeStore } from '../stores/themeStore';
-import { tagApi } from '../services/api';
+import { userApi, tagApi } from '../services/api';
 import { uploadFiles } from '../services/uploadManager';
 import UploadProgressPanel from '../components/UploadProgressPanel';
 import {
@@ -19,7 +19,9 @@ export default function AppShell() {
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
-    const [tags, setTags] = useState<{ id: string; name: string; color: string }[]>([]);
+    const [tags, setTags] = useState<{ id: string; name: string; color: string; order: number }[]>([]);
+    const [draggedTagId, setDraggedTagId] = useState<string | null>(null);
+    const [tagContextMenu, setTagContextMenu] = useState<{ x: number, y: number, id: string } | null>(null);
 
     useEffect(() => {
         const fetchTags = async () => {
@@ -30,7 +32,31 @@ export default function AppShell() {
                 console.error('Failed to fetch tags:', err);
             }
         };
+
+        const fetchUser = async () => {
+            try {
+                const res: any = await userApi.getMe();
+                if (res.data) {
+                    useAuthStore.getState().updateUser(res.data);
+                }
+            } catch (err) {
+                console.error('Failed to fetch user profile:', err);
+            }
+        };
+
         fetchTags();
+        fetchUser();
+
+        const handleClick = () => {
+            setTagContextMenu(null);
+            setUserMenuOpen(false);
+        };
+        window.addEventListener('click', handleClick);
+        window.addEventListener('refresh-profile', fetchUser);
+        return () => {
+            window.removeEventListener('click', handleClick);
+            window.removeEventListener('refresh-profile', fetchUser);
+        };
     }, []);
 
     const handleSidebarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,6 +86,59 @@ export default function AppShell() {
     const handleLogout = () => {
         logout();
         navigate('/login');
+    };
+
+    const handleTagDelete = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this tag?')) return;
+        try {
+            await tagApi.delete(id);
+            setTags(tags.filter(t => t.id !== id));
+            if (selectedTag?.id === id) setSelectedTag(null);
+            setTagContextMenu(null);
+        } catch (err) {
+            console.error('Failed to delete tag:', err);
+        }
+    };
+
+    const handleTagDragStart = (e: React.DragEvent, id: string) => {
+        setDraggedTagId(id);
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleTagDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    };
+
+    const handleTagDrop = async (e: React.DragEvent, targetId: string) => {
+        e.preventDefault();
+        if (!draggedTagId || draggedTagId === targetId) return;
+
+        const newTags = [...tags];
+        const draggedIndex = newTags.findIndex(t => t.id === draggedTagId);
+        const targetIndex = newTags.findIndex(t => t.id === targetId);
+
+        if (draggedIndex === -1 || targetIndex === -1) return;
+
+        const [removed] = newTags.splice(draggedIndex, 1);
+        newTags.splice(targetIndex, 0, removed);
+
+        // Update local state for immediate feedback
+        const reorderedTags = newTags.map((t, i) => ({ ...t, order: i }));
+        setTags(reorderedTags);
+        setDraggedTagId(null);
+
+        // Persist to backend
+        try {
+            await tagApi.reorder(reorderedTags.map(t => ({ id: t.id, order: t.order })));
+        } catch (err) {
+            console.error('Failed to persist tag order:', err);
+        }
+    };
+
+    const handleTagContextMenu = (e: React.MouseEvent, id: string) => {
+        e.preventDefault();
+        setTagContextMenu({ x: e.clientX, y: e.clientY, id });
     };
 
     const used = user?.storageUsed || 0;
@@ -96,7 +175,7 @@ export default function AppShell() {
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex-1 space-y-1 px-3">
+                <nav className="flex-1 space-y-1 px-3 overflow-y-auto custom-scrollbar">
                     <NavLink to="/" end className={({ isActive }) => `nav-item ${isActive && !selectedTag ? 'active' : ''}`} onClick={() => { setSelectedTag(null); setCurrentFolderId(null); }}>
                         <FolderOpen className="h-4 w-4" />
                         My Files
@@ -115,25 +194,41 @@ export default function AppShell() {
                     </NavLink>
 
                     {tags.length > 0 && (
-                        <>
+                        <div className="pb-4">
                             <div className="pt-4 pb-1 pl-4 text-xs font-semibold text-surface-400 uppercase tracking-wider">
                                 Tags
                             </div>
                             {tags.map(tag => (
-                                <button
+                                <div
                                     key={tag.id}
-                                    onClick={() => {
-                                        setSelectedTag({ id: tag.id, name: tag.name });
-                                        setCurrentFolderId(null);
-                                        navigate('/');
-                                    }}
-                                    className={`nav-item w-full justify-start ${selectedTag?.id === tag.id ? 'active' : ''}`}
+                                    draggable
+                                    onDragStart={(e) => handleTagDragStart(e, tag.id)}
+                                    onDragOver={handleTagDragOver}
+                                    onDrop={(e) => handleTagDrop(e, tag.id)}
+                                    className="group relative"
                                 >
-                                    <TagIcon className="h-4 w-4" style={{ color: tag.color }} />
-                                    <span className="truncate">{tag.name}</span>
-                                </button>
+                                    <button
+                                        onClick={() => {
+                                            setSelectedTag({ id: tag.id, name: tag.name });
+                                            setCurrentFolderId(null);
+                                            navigate('/');
+                                        }}
+                                        onContextMenu={(e) => handleTagContextMenu(e, tag.id)}
+                                        className={`nav-item w-full justify-start pr-8 ${selectedTag?.id === tag.id ? 'active' : ''}`}
+                                    >
+                                        <TagIcon className="h-4 w-4" style={{ color: tag.color }} />
+                                        <span className="truncate">{tag.name}</span>
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleTagDelete(tag.id); }}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-surface-400 opacity-0 hover:text-red-500 group-hover:opacity-100 transition-all cursor-pointer"
+                                        title="Delete tag"
+                                    >
+                                        <X className="h-3.5 w-3.5" />
+                                    </button>
+                                </div>
                             ))}
-                        </>
+                        </div>
                     )}
                 </nav>
 
@@ -231,6 +326,23 @@ export default function AppShell() {
                 </main>
             </div>
             {/* Global upload progress panel */}
+            {/* Tag Context Menu */}
+            {tagContextMenu && (
+                <div
+                    className="fixed z-50 w-48 rounded-xl border bg-white py-2 shadow-2xl dark:border-surface-800 dark:bg-surface-900"
+                    style={{ top: tagContextMenu.y, left: tagContextMenu.x }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <button
+                        onClick={() => handleTagDelete(tagContextMenu.id)}
+                        className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                        Delete Tag
+                    </button>
+                </div>
+            )}
+
             <UploadProgressPanel />
         </div>
     );

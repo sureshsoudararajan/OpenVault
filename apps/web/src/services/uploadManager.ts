@@ -127,6 +127,7 @@ export async function uploadFile(file: File, options: UploadOptions = {}): Promi
         }, 4000);
 
         onComplete?.(completeRes.data);
+        window.dispatchEvent(new CustomEvent('refresh-profile'));
         return completeRes.data;
     } catch (err: any) {
         let errorMsg = 'Upload failed';
