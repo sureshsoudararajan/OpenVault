@@ -116,6 +116,20 @@ export async function fileRoutes(app: FastifyInstance) {
         await enqueueThumbnail(file.id, body.mimeType, body.storageKey);
         await enqueueDedupScan(file.id, hash, request.userId);
 
+        // Trigger initial search indexing
+        try {
+            await fetch(`${config.apiUrl}/api/search/index`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer INTERNAL_${config.jwt.accessSecret}` 
+                },
+                body: JSON.stringify({ fileId: file.id })
+            });
+        } catch (e: any) {
+            app.log.warn({ err: e }, `⚠️ Failed to trigger initial search indexing for ${file.id}`);
+        }
+
         return reply.status(201).send({
             success: true,
             data: { ...file, size: Number(file.size) },
@@ -529,7 +543,7 @@ export async function fileRoutes(app: FastifyInstance) {
         const [files, folders] = await Promise.all([
             prisma.file.findMany({
                 where: { userId: request.userId, isTrashed: true },
-                select: { id: true, name: true, mimeType: true, size: true, trashedAt: true, folderId: true },
+                select: { id: true, name: true, mimeType: true, size: true, trashedAt: true, folderId: true, thumbnailKey: true },
                 orderBy: { trashedAt: 'desc' },
             }),
             prisma.folder.findMany({

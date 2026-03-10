@@ -378,15 +378,15 @@ function DashboardPage() {
 
             {/* Selection Bar */}
             {totalSelected > 0 && (
-                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[90] flex items-center gap-4 rounded-2xl bg-gray-900 dark:bg-white border border-gray-800 dark:border-gray-200 px-6 py-3 shadow-2xl animate-slide-up">
-                    <div className="flex items-center gap-2">
-                        <div className="h-7 w-7 rounded-lg bg-indigo-500 flex items-center justify-center">
-                            <CheckSquare className="h-3.5 w-3.5 text-white" />
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] flex items-center gap-2 lg:gap-4 rounded-2xl bg-surface-900 dark:bg-white border border-surface-800 dark:border-surface-200 px-4 lg:px-6 py-2.5 lg:py-3 shadow-2xl animate-slide-up w-[90vw] max-w-lg lg:w-auto">
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="h-6 w-6 lg:h-7 lg:w-7 rounded-lg bg-indigo-500 flex items-center justify-center">
+                            <CheckSquare className="h-3 w-3 lg:h-3.5 lg:w-3.5 text-white" />
                         </div>
-                        <span className="text-sm font-semibold text-white dark:text-gray-900">{totalSelected} selected</span>
+                        <span className="text-xs lg:text-sm font-bold text-white dark:text-surface-900">{totalSelected} <span className="hidden xs:inline">selected</span></span>
                     </div>
-                    <div className="h-6 w-px bg-gray-700 dark:bg-gray-300" />
-                    <div className="flex items-center gap-1">
+                    <div className="h-6 w-px bg-surface-700 dark:bg-surface-300 mx-1" />
+                    <div className="flex items-center gap-1 flex-1 justify-center">
                         {clipboard.length === 0 && (
                             <button
                                 onClick={() => {
@@ -396,17 +396,17 @@ function DashboardPage() {
                                     ].filter(Boolean) as { id: string; type: 'file' | 'folder'; name: string }[];
                                     if (items.length > 0) { setClipboard(items, 'copy'); setPasteStatus(`${items.length} item(s) copied`); setTimeout(() => setPasteStatus(null), 2000); }
                                 }}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-gray-300 dark:text-gray-600 hover:text-white dark:hover:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors text-sm font-medium"
+                                className="flex items-center gap-1.5 px-2 lg:px-3 py-1.5 rounded-lg text-surface-300 dark:text-surface-600 hover:text-white dark:hover:text-surface-900 hover:bg-surface-800 dark:hover:bg-surface-100 transition-colors text-[10px] lg:text-sm font-medium"
                             >
-                                <Copy className="h-3.5 w-3.5" /> Copy
+                                <Copy className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Copy</span>
                             </button>
                         )}
-                        <button onClick={handleBulkDelete} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-red-400 hover:text-red-300 dark:hover:text-red-600 hover:bg-red-500/10 transition-colors text-sm font-medium">
-                            <Trash2 className="h-3.5 w-3.5" /> Delete
+                        <button onClick={handleBulkDelete} className="flex items-center gap-1.5 px-2 lg:px-3 py-1.5 rounded-lg text-red-400 hover:text-red-300 dark:hover:text-red-600 hover:bg-red-500/10 transition-colors text-[10px] lg:text-sm font-medium">
+                            <Trash2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Delete</span>
                         </button>
                     </div>
-                    <button onClick={clearSelection} className="p-1.5 hover:bg-gray-800 dark:hover:bg-gray-100 rounded-lg transition-colors">
-                        <X className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                    <button onClick={clearSelection} className="p-1.5 hover:bg-surface-800 dark:hover:bg-surface-100 rounded-lg transition-colors flex-shrink-0">
+                        <X className="h-4 w-4 text-surface-400 dark:text-surface-500" />
                     </button>
                 </div>
             )}
@@ -417,18 +417,18 @@ function DashboardPage() {
                 <div className="mb-8">
                     <div className="flex items-center justify-between mb-6">
                         {/* Breadcrumbs */}
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar whitespace-nowrap pb-1 max-w-full">
                             {breadcrumbs.map((crumb, i) => (
-                                <span key={i} className="flex items-center">
-                                    {i > 0 && <ChevronRight className="mx-1 h-4 w-4 text-gray-400 dark:text-gray-600" />}
+                                <span key={i} className="flex items-center flex-shrink-0">
+                                    {i > 0 && <ChevronRight className="mx-0.5 lg:mx-1 h-3.5 w-3.5 lg:h-4 lg:w-4 text-surface-400 dark:text-surface-600" />}
                                     <button
                                         onClick={() => {
                                             if (selectedTag) setSelectedTag(null);
                                             crumb.id ? navigate(`/folder/${crumb.id}`) : navigate('/');
                                         }}
-                                        className={`px-2 py-1 rounded-lg transition-colors ${i === breadcrumbs.length - 1
-                                            ? 'text-2xl font-bold text-gray-900 dark:text-white'
-                                            : 'text-lg font-medium text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                                        className={`px-1.5 lg:px-2 py-1 rounded-lg transition-colors whitespace-nowrap ${i === breadcrumbs.length - 1
+                                            ? 'text-lg lg:text-2xl font-bold text-surface-900 dark:text-white'
+                                            : 'text-sm lg:text-lg font-medium text-surface-400 dark:text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}`}
                                     >
                                         {crumb.name}
                                     </button>
@@ -437,30 +437,40 @@ function DashboardPage() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5 lg:gap-3 flex-shrink-0">
                             {clipboard.length > 0 && (
-                                <button onClick={handlePaste} className="btn-primary !bg-indigo-500 !text-white flex items-center gap-2 text-sm">
-                                    <Clipboard className="h-4 w-4" /> Paste ({clipboard.length})
+                                <button onClick={handlePaste} className="btn-primary !bg-indigo-500 !text-white flex items-center gap-2 text-xs lg:text-sm px-2.5 lg:px-4 py-1.5 lg:py-2">
+                                    <Clipboard className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
+                                    <span className="hidden sm:inline">Paste ({clipboard.length})</span>
+                                    <span className="sm:hidden">{clipboard.length}</span>
                                 </button>
                             )}
                             <button onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                                className="btn-ghost p-2.5 rounded-xl border border-gray-200 dark:border-gray-700"
+                                className="btn-ghost p-1.5 lg:p-2.5 rounded-xl border border-surface-200 dark:border-surface-700 hover:bg-surface-100 dark:hover:bg-surface-800"
                                 title={viewMode === 'grid' ? 'Switch to List View' : 'Switch to Grid View'}
                             >
-                                {viewMode === 'grid' ? <List className="h-5 w-5" /> : <Grid3X3 className="h-5 w-5" />}
+                                {viewMode === 'grid' ? <List className="h-4 w-4 lg:h-5 lg:w-5" /> : <Grid3X3 className="h-4 w-4 lg:h-5 lg:w-5" />}
                             </button>
-                            <button onClick={() => setShowNewFolderInput(true)} className="btn-secondary flex items-center gap-2 text-sm">
-                                <FolderPlus className="h-4 w-4" /> New Folder
+                            <button onClick={() => setShowNewFolderInput(true)} className="btn-secondary hidden sm:flex items-center gap-2 text-xs lg:text-sm px-3 lg:px-4 py-1.5 lg:py-2">
+                                <FolderPlus className="h-3.5 w-3.5 lg:h-4 lg:w-4" /> New Folder
                             </button>
-                            <div className="flex gap-1">
-                                <button onClick={() => fileInputRef.current?.click()} className="btn-primary flex items-center gap-2 text-sm !rounded-r-none border-r border-white/20">
-                                    <Upload className="h-4 w-4" /> Upload
+                            <div className="flex gap-1 group">
+                                <button onClick={() => fileInputRef.current?.click()} className="btn-primary flex items-center gap-2 text-xs lg:text-sm px-2.5 lg:px-4 py-1.5 lg:py-2 !rounded-r-none border-r border-white/20">
+                                    <Upload className="h-3.5 w-3.5 lg:h-4 lg:w-4" /> <span>Upload</span>
                                 </button>
-                                <button onClick={() => folderInputRef.current?.click()} className="btn-primary flex items-center justify-center px-3 !rounded-l-none" title="Upload Folder">
-                                    <FolderOpen className="h-4 w-4" />
+                                <button onClick={() => folderInputRef.current?.click()} className="btn-primary flex items-center justify-center px-2 lg:px-3 !rounded-l-none" title="Upload Folder">
+                                    <FolderOpen className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
                                 </button>
                             </div>
                         </div>
+                    </div>
+
+                    {/* Mobile New Folder Action (Floating or Inline) */}
+                    <div className="flex sm:hidden overflow-x-auto gap-2 mb-4 pb-2 no-scrollbar">
+                         <button onClick={() => setShowNewFolderInput(true)} className="btn-secondary flex items-center gap-2 text-xs whitespace-nowrap px-3 py-1.5">
+                            <FolderPlus className="h-3.5 w-3.5" /> New Folder
+                        </button>
+                        {/* You can add more quick actions here for mobile */}
                     </div>
 
                     {/* Hidden Inputs */}
@@ -500,9 +510,9 @@ function DashboardPage() {
                         {/* Folders */}
                         {folders.length > 0 && (
                             <div className="mb-10">
-                                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-4 px-1">Folders</h3>
+                                <h3 className="text-[10px] lg:text-xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500 mb-4 px-1">Folders</h3>
                                 <div className={viewMode === 'grid'
-                                    ? 'grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
+                                    ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
                                     : 'space-y-2'
                                 }>
                                     {folders.map((folder) => (
@@ -572,10 +582,10 @@ function DashboardPage() {
                         {/* Files */}
                         {files.length > 0 && (
                             <div>
-                                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-4 px-1">Files</h3>
+                                <h3 className="text-[10px] lg:text-xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500 mb-4 px-1">Files</h3>
 
                                 {viewMode === 'grid' ? (
-                                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                                         {files.map((file, index) => (
                                             <div
                                                 key={file.id}
@@ -739,19 +749,19 @@ function DashboardPage() {
 
                         {/* Empty State */}
                         {folders.length === 0 && files.length === 0 && (
-                            <div className="flex flex-col items-center justify-center py-32 text-center">
-                                <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
-                                    <FolderOpen className="h-12 w-12 text-gray-300 dark:text-gray-600" />
+                            <div className="flex flex-col items-center justify-center py-20 lg:py-32 text-center animate-fade-in px-4">
+                                <div className="mb-6 flex h-20 w-20 lg:h-24 lg:w-24 items-center justify-center rounded-3xl bg-surface-100 dark:bg-surface-800 shadow-inner">
+                                    <FolderOpen className="h-10 w-10 lg:h-12 lg:w-12 text-surface-300 dark:text-surface-600" />
                                 </div>
-                                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No files yet</h3>
-                                <p className="max-w-xs text-gray-500 dark:text-gray-400 mb-6">
-                                    Upload files or create a folder to get started.
+                                <h3 className="text-lg lg:text-xl font-bold text-surface-900 dark:text-white mb-2">No files yet</h3>
+                                <p className="max-w-xs text-sm text-surface-500 dark:text-surface-400 mb-8 mx-auto leading-relaxed">
+                                    Start by uploading some files or creating a new folder to organize your vault.
                                 </p>
-                                <div className="flex gap-3">
-                                    <button onClick={() => fileInputRef.current?.click()} className="btn-primary flex items-center gap-2 text-sm">
+                                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                                    <button onClick={() => fileInputRef.current?.click()} className="btn-primary flex items-center justify-center gap-2 text-sm px-6 py-2.5">
                                         <Upload className="h-4 w-4" /> Upload Files
                                     </button>
-                                    <button onClick={() => setShowNewFolderInput(true)} className="btn-secondary flex items-center gap-2 text-sm">
+                                    <button onClick={() => setShowNewFolderInput(true)} className="btn-secondary flex items-center justify-center gap-2 text-sm px-6 py-2.5">
                                         <FolderPlus className="h-4 w-4" /> New Folder
                                     </button>
                                 </div>

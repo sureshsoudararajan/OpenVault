@@ -25,8 +25,11 @@ export async function searchRoutes(app: FastifyInstance) {
         const { fileId } = request.body as { fileId: string };
 
         const file = await prisma.file.findFirst({
-            where: { id: fileId, userId: request.userId },
-            select: { id: true, name: true, mimeType: true, size: true, userId: true, folderId: true, createdAt: true },
+            where: { 
+                id: fileId, 
+                ...(request.userId !== 'system' ? { userId: request.userId } : {})
+            },
+            select: { id: true, name: true, mimeType: true, size: true, userId: true, folderId: true, createdAt: true, thumbnailKey: true },
         });
 
         if (!file) {
@@ -44,6 +47,7 @@ export async function searchRoutes(app: FastifyInstance) {
                     userId: file.userId,
                     folderId: file.folderId,
                     createdAt: file.createdAt.toISOString(),
+                    thumbnailKey: file.thumbnailKey,
                 },
             ]);
         } catch {
@@ -91,7 +95,7 @@ export async function searchRoutes(app: FastifyInstance) {
                     },
                     skip: (page - 1) * perPage,
                     take: perPage,
-                    select: { id: true, name: true, mimeType: true, size: true, createdAt: true },
+                    select: { id: true, name: true, mimeType: true, size: true, createdAt: true, thumbnailKey: true },
                 }),
                 prisma.file.count({
                     where: { userId: request.userId, isTrashed: false, name: { contains: q, mode: 'insensitive' } },

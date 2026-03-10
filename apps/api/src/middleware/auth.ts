@@ -29,6 +29,17 @@ export async function authGuard(request: FastifyRequest, reply: FastifyReply): P
 
     const token = authHeader.slice(7);
 
+    // Support internal requests from background workers
+    if (token === `INTERNAL_${config.jwt.accessSecret}`) {
+        // Find the user ID from the body if possible, or leave it as system
+        // For /index, we expect fileId in body and we'll look up the owner there
+        // For now, we trust internal requests to be valid
+        request.userId = (request.body as any)?.userId || 'system';
+        request.userEmail = 'system@openvault.internal';
+        request.userRole = 'admin';
+        return;
+    }
+
     try {
         const payload = jwt.verify(token, config.jwt.accessSecret) as TokenPayload;
         request.userId = payload.sub;

@@ -45,6 +45,8 @@ export default function SettingsPage() {
     const [forgotLoading, setForgotLoading] = useState(false);
     const [forgotError, setForgotError] = useState('');
     const [forgotSuccess, setForgotSuccess] = useState(false);
+    
+
 
     const handleSaveProfile = async () => {
         setSaving(true);
@@ -259,8 +261,8 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
-                <div className="p-8">
-                    <div className="flex flex-col md:flex-row gap-10">
+                <div className="p-6 md:p-8">
+                    <div className="flex flex-col md:flex-row gap-6 md:gap-10">
                         {/* Avatar Column */}
                         <div className="flex flex-col items-center">
                             <div className="group relative h-32 w-32 overflow-hidden rounded-full ring-4 ring-surface-50 dark:ring-surface-800 shadow-lg bg-gradient-to-br from-brand-100 to-indigo-50 dark:from-surface-700 dark:to-surface-800">
@@ -446,6 +448,7 @@ export default function SettingsPage() {
                 </section>
             </div>
 
+
             {/* Global Errors */}
             {(error || mfaError) && (
                 <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400 flex items-start gap-3 border border-red-200 dark:border-red-500/20 shadow-sm animate-shake">
@@ -454,50 +457,68 @@ export default function SettingsPage() {
                 </div>
             )}
 
-            {/* MFA Setup Block */}
+            {/* MFA Setup Modal (Overlay) */}
             {mfaSetup && !user?.mfaEnabled && (
-                <div className="animate-slide-down rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 p-6 shadow-xl mb-6">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-brand-50 dark:bg-brand-500/10 rounded-lg text-brand-600 dark:text-brand-400">
-                            <QrCode className="h-5 w-5" />
-                        </div>
-                        <h3 className="font-medium text-surface-900 dark:text-white">Scan QR Code</h3>
-                    </div>
-                    <p className="mb-4 text-sm text-surface-600 dark:text-surface-300">
-                        Scan this code with Google Authenticator, Authy, or your preferred TOTP app.
-                    </p>
-
-                    <div className="flex flex-col sm:flex-row gap-6 items-start">
-                        <div className="bg-white p-2 rounded-lg flex-shrink-0 shadow-sm">
-                            <img src={mfaSetup.qrCodeUrl} alt="MFA QR Code" className="w-32 h-32" />
-                        </div>
-                        <div className="flex-1 w-full space-y-4">
-                            <div>
-                                <p className="text-xs text-surface-500 dark:text-surface-400 mb-1">Manual Entry Secret</p>
-                                <code className="block rounded bg-surface-200 dark:bg-surface-900 px-3 py-2 text-xs text-brand-600 dark:text-brand-400 select-all font-mono">
-                                    {mfaSetup.secret}
-                                </code>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="w-full max-w-lg bg-white dark:bg-surface-800 rounded-2xl shadow-2xl p-8 relative animate-slide-up">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="p-3 bg-brand-50 dark:bg-brand-500/10 rounded-xl text-brand-600 dark:text-brand-400">
+                                <QrCode className="h-6 w-6" />
                             </div>
                             <div>
-                                <p className="text-xs text-surface-500 dark:text-surface-400 mb-1">Verify Setup</p>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={totpCode}
-                                        onChange={(e) => setTotpCode(e.target.value)}
-                                        placeholder="000000"
-                                        className="input-field flex-1 text-sm tracking-widest text-center font-mono"
-                                        maxLength={6}
-                                    />
-                                    <button onClick={handleEnableMfa} disabled={mfaLoading || totpCode.length < 6} className="btn-primary text-sm whitespace-nowrap">
-                                        {mfaLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
-                                    </button>
+                                <h3 className="text-xl font-bold text-surface-900 dark:text-white">Two-Factor Authentication</h3>
+                                <p className="text-sm text-surface-500 dark:text-surface-400">Secure your account with TOTP</p>
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-6">
+                            <p className="text-sm text-surface-600 dark:text-surface-300 leading-relaxed">
+                                Scan this QR code with <strong>Ente Auth</strong>, Google Authenticator, or Authy to get started. 
+                            </p>
+
+                            <div className="flex flex-col sm:flex-row gap-8 items-center bg-surface-50 dark:bg-surface-900/50 p-6 rounded-2xl border border-surface-100 dark:border-surface-700/50">
+                                <div className="bg-white p-3 rounded-xl flex-shrink-0 shadow-sm ring-1 ring-surface-200">
+                                    <img src={mfaSetup.qrCodeUrl} alt="MFA QR Code" className="w-32 h-32" />
+                                </div>
+                                <div className="flex-1 w-full space-y-4">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest mb-1.5">Manual Entry Secret</p>
+                                        <code className="block rounded-lg bg-white dark:bg-surface-950 px-3 py-2 text-xs text-brand-600 dark:text-brand-400 select-all font-mono border border-surface-200 dark:border-surface-800 text-center tracking-wider">
+                                            {mfaSetup.secret}
+                                        </code>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest mb-1.5">Verification Code</p>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={totpCode}
+                                                onChange={(e) => setTotpCode(e.target.value)}
+                                                placeholder="000 000"
+                                                className="input-field flex-1 text-sm tracking-[0.3em] text-center font-mono py-2.5"
+                                                maxLength={6}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button 
+                                    onClick={() => setMfaSetup(null)} 
+                                    className="btn-secondary flex-1 text-sm py-2.5"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    onClick={handleEnableMfa} 
+                                    disabled={mfaLoading || totpCode.length < 6} 
+                                    className="btn-primary flex-1 text-sm py-2.5 flex items-center justify-center gap-2"
+                                >
+                                    {mfaLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Enable 2FA'}
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                    <div className="mt-4 border-t border-surface-200 dark:border-surface-700 pt-4 flex justify-end">
-                        <button onClick={() => setMfaSetup(null)} className="text-sm text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors">Cancel Setup</button>
                     </div>
                 </div>
             )}
@@ -515,7 +536,7 @@ export default function SettingsPage() {
 
                     <div className="grid grid-cols-2 gap-3 mb-6 font-mono">
                         {recoveryCodes.map((code, idx) => (
-                            <div key={idx} className="bg-surface-100 dark:bg-background rounded min-h-[40px] border border-surface-200 dark:border-surface-700 p-2 flex items-center justify-center text-sm font-semibold text-surface-900 dark:text-white tracking-widest shadow-inner">
+                            <div key={idx} className="bg-surface-100 dark:bg-surface-900/60 rounded-xl min-h-[40px] border border-surface-200 dark:border-surface-700/50 p-2 flex items-center justify-center text-sm font-bold text-surface-900 dark:text-white tracking-widest shadow-inner">
                                 {code}
                             </div>
                         ))}
@@ -586,7 +607,7 @@ export default function SettingsPage() {
                             <button
                                 onClick={handleManageAction}
                                 disabled={mfaLoading || !passwordConfirm || (manageAction !== 'disable' && manageAction !== 'regenerate' && totpCode.length < 6)}
-                                className={`btn-primary flex-1 text-sm text-white ${manageAction === 'disable' ? 'bg-red-600 hover:bg-red-700 border-red-600' : ''}`}
+                                className={`btn-primary flex-1 text-sm ${manageAction === 'disable' ? 'bg-red-600 dark:bg-red-500 hover:bg-red-700 dark:hover:bg-red-600 border-none !text-white' : ''}`}
                             >
                                 {mfaLoading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : 'Confirm'}
                             </button>

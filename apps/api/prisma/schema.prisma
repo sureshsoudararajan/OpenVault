@@ -37,6 +37,7 @@ model User {
   storageUsed   BigInt   @default(0) @map("storage_used")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
+  webdavToken   String?  @map("webdav_token") @db.VarChar(255)
 
   files          File[]
   folders        Folder[]
@@ -119,6 +120,7 @@ model File {
   @@index([folderId])
   @@index([sha256Hash])
   @@index([isTrashed])
+  @@unique([userId, folderId, name])
   @@map("files")
 }
 
@@ -168,6 +170,7 @@ model Folder {
   @@index([userId])
   @@index([parentId])
   @@index([path])
+  @@unique([userId, parentId, name])
   @@map("folders")
 }
 

@@ -139,6 +139,8 @@ export const userApi = {
     }) => request('/users/me', { method: 'PATCH', body: data }),
     updateAvatar: (formData: FormData) =>
         request('/users/me/avatar', { method: 'POST', body: formData }),
+    getWebdavDetails: () => request('/users/me/webdav'),
+    generateWebdavToken: () => request('/users/me/webdav-token', { method: 'POST' }),
 };
 
 // ============================================

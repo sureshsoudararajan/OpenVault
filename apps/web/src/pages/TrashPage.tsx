@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fileApi, folderApi } from '../services/api';
 import { Trash2, RotateCcw, File, FileText, Image, Film, Folder, AlertTriangle, Loader2, X } from 'lucide-react';
+import Thumbnail from '../components/Thumbnail';
 
 interface TrashedFile {
     id: string;
@@ -9,6 +10,7 @@ interface TrashedFile {
     size: number;
     trashedAt: string;
     type: 'file';
+    thumbnailKey?: string | null;
 }
 
 interface TrashedFolder {
@@ -23,6 +25,12 @@ type TrashedItem = TrashedFile | TrashedFolder;
 const getIcon = (item: TrashedItem) => {
     if (item.type === 'folder') return <Folder className="h-5 w-5 text-amber-400" />;
     const file = item as TrashedFile;
+    
+    // If it has a thumbnail, render it
+    if (file.thumbnailKey && (file.mimeType.startsWith('image/') || file.mimeType.startsWith('video/'))) {
+        return <Thumbnail fileId={file.id} mimeType={file.mimeType} className="h-10 w-10 flex-shrink-0 rounded-lg overflow-hidden" />;
+    }
+
     if (file.mimeType.startsWith('image/')) return <Image className="h-5 w-5 text-pink-400" />;
     if (file.mimeType.startsWith('video/')) return <Film className="h-5 w-5 text-purple-400" />;
     if (file.mimeType.includes('pdf')) return <FileText className="h-5 w-5 text-red-400" />;

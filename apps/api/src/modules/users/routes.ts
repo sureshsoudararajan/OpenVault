@@ -182,4 +182,40 @@ export async function userRoutes(app: FastifyInstance) {
             meta: { page, perPage, total },
         };
     });
+
+    // GET /api/users/me/webdav — Get connection details
+    app.get('/me/webdav', { preHandler: [authGuard] }, async (request) => {
+        const user = await prisma.user.findUnique({
+            where: { id: request.userId },
+            select: { email: true, webdavToken: true },
+        });
+
+        const host = request.headers.host || 'localhost:3000';
+        const protocol = request.headers['x-forwarded-proto'] || 'http';
+        const baseUrl = `${protocol}://${host}`;
+
+        return {
+            success: true,
+            data: {
+                serverUrl: `${baseUrl}/dav/`,
+                username: user?.email,
+                token: user?.webdavToken,
+            },
+        };
+    });
+
+    // POST /api/users/me/webdav-token — Generate/Reset WebDAV token
+    app.post('/me/webdav-token', { preHandler: [authGuard] }, async (request) => {
+        const token = crypto.randomBytes(24).toString('hex');
+
+        await prisma.user.update({
+            where: { id: request.userId },
+            data: { webdavToken: token },
+        });
+
+        return {
+            success: true,
+            data: { token },
+        };
+    });
 }

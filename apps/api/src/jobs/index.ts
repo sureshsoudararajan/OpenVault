@@ -173,6 +173,24 @@ export async function initWorkers(config: AppConfig): Promise<void> {
                     data: { thumbnailKey },
                 });
 
+                // 5. Trigger search re-index to include the new thumbnail
+                try {
+                    const { loadConfig } = await import('@openvault/config');
+                    const config = loadConfig();
+                    // We need to fetch without the searchApi because that's a frontend thing.
+                    // We directly call the API.
+                    await fetch(`${config.apiUrl}/api/search/index`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer INTERNAL_${config.jwt.accessSecret}` 
+                        },
+                        body: JSON.stringify({ fileId })
+                    });
+                } catch (e) {
+                    console.warn(`⚠️ Failed to trigger search re-index for ${fileId}:`, e);
+                }
+
                 console.log(`✅ Thumbnail generated for ${fileId}`);
             } catch (error) {
                 console.error(`❌ Failed to generate thumbnail for ${fileId}:`, error);

@@ -5,8 +5,11 @@ import {
     Image, Film, Music,
     FileText, FileArchive, File, FileCode2,
     AlignLeft, Table, Presentation,
-    Maximize2, Minimize2, Loader2, Save, Pencil, Eye as EyeIcon
+    Maximize2, Minimize2, Loader2, Save, Pencil, Eye as EyeIcon,
+    ChevronDown, Settings, LogOut
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../stores/authStore';
 import * as XLSX from 'xlsx';
 
 interface FilePreviewProps {
@@ -48,6 +51,14 @@ export default function FilePreview({
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [fullscreen, setFullscreen] = useState(false);
+    const [userMenuOpen, setUserMenuOpen] = useState(false);
+    const { user, logout } = useAuthStore();
+    const navigate = useNavigate();
+
+    const handleLogout = async () => {
+        await logout();
+        navigate('/login');
+    };
 
     useEffect(() => {
         const loadPreview = async () => {
@@ -122,32 +133,32 @@ export default function FilePreview({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/80 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 dark:bg-black/40 backdrop-blur-md animate-fade-in p-4 md:p-8">
             <div className="absolute inset-0" onClick={onClose} />
 
-            <div className={`relative z-10 flex flex-col ${fullscreen ? 'h-full w-full' : 'h-[90vh] w-[90vw] max-w-5xl rounded-xl'
-                } overflow-hidden bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 shadow-2xl transition-all duration-300`}>
+            <div className={`relative z-10 flex flex-col ${fullscreen ? 'h-full w-full rounded-none' : 'h-[85vh] md:h-[80vh] w-full max-w-5xl rounded-3xl'
+                } overflow-hidden bg-white/95 dark:bg-surface-900/95 backdrop-blur-2xl border border-white/20 dark:border-surface-700/50 shadow-2xl transition-all duration-500`}>
 
                 {/* Header */}
-                <div className="flex items-center justify-between border-b border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/90 px-4 py-3 backdrop-blur-sm">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <div className="flex-shrink-0">
-                            {isImage && <Image className="h-5 w-5 text-pink-400" />}
-                            {isVideo && <Film className="h-5 w-5 text-purple-400" />}
-                            {isAudio && <Music className="h-5 w-5 text-cyan-400" />}
-                            {isPdf && <FileText className="h-5 w-5 text-red-400" />}
-                            {isExcel && <Table className="h-5 w-5 text-emerald-400" />}
-                            {isWord && <FileText className="h-5 w-5 text-blue-400" />}
-                            {isOdt && <FileText className="h-5 w-5 text-orange-400" />}
-                            {!isImage && !isVideo && !isAudio && !isPdf && !isExcel && !isWord && !isOdt && <File className="h-5 w-5 text-brand-400" />}
+                <div className="flex items-center justify-between border-b border-surface-200/50 dark:border-surface-700/50 bg-white/95 dark:bg-surface-900/50 px-4 md:px-6 py-3 md:py-4 backdrop-blur-xl">
+                    <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                        <div className="flex-shrink-0 p-2 rounded-xl bg-surface-100 dark:bg-surface-800">
+                            {isImage && <Image className="h-4 w-4 md:h-5 md:w-5 text-pink-500" />}
+                            {isVideo && <Film className="h-4 w-4 md:h-5 md:w-5 text-purple-500" />}
+                            {isAudio && <Music className="h-4 w-4 md:h-5 md:w-5 text-cyan-500" />}
+                            {isPdf && <FileText className="h-4 w-4 md:h-5 md:w-5 text-red-500" />}
+                            {isExcel && <Table className="h-4 w-4 md:h-5 md:w-5 text-emerald-500" />}
+                            {isWord && <FileText className="h-4 w-4 md:h-5 md:w-5 text-blue-500" />}
+                            {isOdt && <FileText className="h-4 w-4 md:h-5 md:w-5 text-orange-500" />}
+                            {!isImage && !isVideo && !isAudio && !isPdf && !isExcel && !isWord && !isOdt && <File className="h-4 w-4 md:h-5 md:w-5 text-brand-500" />}
                         </div>
                         <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-surface-900 dark:text-white">{fileName}</p>
-                            <p className="text-xs text-surface-500">{formatSize(fileSize)} · {mimeType}</p>
+                            <p className="truncate text-xs md:text-sm font-bold text-surface-900 dark:text-white leading-tight">{fileName}</p>
+                            <p className="text-[10px] md:text-xs text-surface-500 font-medium">{formatSize(fileSize)} · {mimeType.split('/')[1] || mimeType}</p>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 md:gap-2">
                         <button onClick={handleDownload} className="rounded-lg p-2 text-surface-400 transition-colors hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-white" title="Download">
                             <Download className="h-4 w-4" />
                         </button>
@@ -157,11 +168,46 @@ export default function FilePreview({
                         <button onClick={onClose} className="rounded-lg p-2 text-surface-400 transition-colors hover:bg-red-50 dark:hover:bg-surface-800 hover:text-red-500 dark:hover:text-red-400" title="Close">
                             <X className="h-4 w-4" />
                         </button>
+
+                        <div className="h-4 w-px bg-surface-200 dark:bg-surface-700 mx-1 hidden md:block" />
+
+                        {/* User Profile Button - Now at the end */}
+                        <div className="relative">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setUserMenuOpen(!userMenuOpen); }}
+                                className="flex items-center gap-2 rounded-xl p-1 transition-all hover:bg-surface-200/50 dark:hover:bg-surface-800/50 active:scale-95"
+                            >
+                                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-indigo-600 text-[10px] font-semibold text-white overflow-hidden shadow-inner">
+                                    {user?.avatarUrl ? (
+                                        <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+                                    ) : (
+                                        user?.name?.charAt(0).toUpperCase() || 'U'
+                                    )}
+                                </div>
+                                <span className="hidden text-xs font-semibold md:block max-w-[80px] truncate text-surface-900 dark:text-white">{user?.name}</span>
+                                <ChevronDown className={`h-3 w-3 text-surface-600 dark:text-surface-400 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {userMenuOpen && (
+                                <div className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 shadow-xl overflow-hidden py-1 z-50 animate-slide-up">
+                                    <div className="border-b border-surface-100 dark:border-surface-700 px-3 py-2">
+                                        <p className="text-xs font-bold text-surface-900 dark:text-white truncate">{user?.name}</p>
+                                        <p className="text-[10px] text-surface-500 truncate">{user?.email}</p>
+                                    </div>
+                                    <button onClick={() => { navigate('/settings'); setUserMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-surface-600 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors">
+                                        <Settings className="h-3.5 w-3.5" /> Settings
+                                    </button>
+                                    <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
+                                        <LogOut className="h-3.5 w-3.5" /> Sign Out
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
                 {/* Content Area */}
-                <div className="flex flex-1 items-center justify-center overflow-auto bg-surface-100 dark:bg-surface-950 p-4">
+                <div className="flex flex-1 items-center justify-center overflow-auto bg-transparent p-4 md:p-8">
                     {loading ? (
                         <div className="flex flex-col items-center gap-3">
                             <Loader2 className="h-8 w-8 animate-spin text-brand-400" />
@@ -193,9 +239,13 @@ export default function FilePreview({
                                 <img src={downloadUrl} alt={fileName} className="max-h-full max-w-full object-contain rounded-lg" onError={() => setError('Failed to load image')} />
                             )}
                             {isVideo && downloadUrl && (
-                                <video src={downloadUrl} controls autoPlay={false} className="max-h-full max-w-full rounded-lg" onError={() => setError('Failed to load video')}>
-                                    <source src={downloadUrl} type={mimeType} />
-                                </video>
+                                <video 
+                                    src={downloadUrl} 
+                                    controls 
+                                    className="max-h-full max-w-full rounded-lg shadow-lg" 
+                                    onError={() => setError('Failed to load video')}
+                                    autoPlay
+                                />
                             )}
                             {isAudio && downloadUrl && (
                                 <div className="flex flex-col items-center gap-6 w-full max-w-md">
@@ -221,15 +271,15 @@ export default function FilePreview({
                     )}
                 </div>
 
-                {/* Navigation Arrows */}
+                {/* Navigation Arrows - Hidden on small mobile */}
                 {onPrev && (
-                    <button onClick={onPrev} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 dark:bg-surface-800/80 p-2 text-surface-700 dark:text-white backdrop-blur-sm transition-all hover:bg-white dark:hover:bg-surface-700 hover:scale-110 shadow-lg">
-                        <ChevronLeft className="h-5 w-5" />
+                    <button onClick={onPrev} className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-surface-800/90 p-2 md:p-3 text-surface-700 dark:text-white backdrop-blur-sm transition-all hover:bg-white dark:hover:bg-surface-700 hover:scale-110 shadow-lg hidden sm:flex">
+                        <ChevronLeft className="h-5 w-5 md:h-6 md:w-6" />
                     </button>
                 )}
                 {onNext && (
-                    <button onClick={onNext} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 dark:bg-surface-800/80 p-2 text-surface-700 dark:text-white backdrop-blur-sm transition-all hover:bg-white dark:hover:bg-surface-700 hover:scale-110 shadow-lg">
-                        <ChevronRight className="h-5 w-5" />
+                    <button onClick={onNext} className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/90 dark:bg-surface-800/90 p-2 md:p-3 text-surface-700 dark:text-white backdrop-blur-sm transition-all hover:bg-white dark:hover:bg-surface-700 hover:scale-110 shadow-lg hidden sm:flex">
+                        <ChevronRight className="h-5 w-5 md:h-6 md:w-6" />
                     </button>
                 )}
             </div>
@@ -311,11 +361,11 @@ function NotepadEditor({ url, fileId }: { url: string; fileId: string }) {
                 <textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    className="flex-1 w-full resize-none bg-white dark:bg-surface-900 p-6 text-sm text-surface-800 dark:text-surface-200 font-mono leading-relaxed focus:outline-none"
+                    className="flex-1 w-full resize-none bg-white/50 dark:bg-surface-900/50 p-6 text-sm text-surface-800 dark:text-surface-200 font-mono leading-relaxed focus:outline-none"
                     spellCheck={false}
                 />
             ) : (
-                <pre className="flex-1 w-full overflow-auto bg-white dark:bg-surface-900 p-6 text-sm text-surface-800 dark:text-surface-200 font-mono leading-relaxed whitespace-pre-wrap break-words">
+                <pre className="flex-1 w-full overflow-auto bg-white/50 dark:bg-surface-900/50 p-6 text-sm text-surface-800 dark:text-surface-200 font-mono leading-relaxed whitespace-pre-wrap break-words">
                     {content}
                 </pre>
             )}
@@ -416,7 +466,7 @@ function MarkdownPreview({ url, fileId }: { url: string; fileId: string }) {
 
             {/* Content */}
             {mode === 'preview' ? (
-                <div className="flex-1 overflow-auto bg-white dark:bg-surface-900 p-8">
+                <div className="flex-1 overflow-auto bg-white/50 dark:bg-surface-900/50 p-8">
                     {renderedHtml ? (
                         <div
                             className="prose prose-sm dark:prose-invert max-w-none
@@ -425,8 +475,8 @@ function MarkdownPreview({ url, fileId }: { url: string; fileId: string }) {
                                 prose-strong:text-surface-900 dark:prose-strong:text-white
                                 prose-a:text-brand-600 dark:prose-a:text-brand-400
                                 prose-code:text-brand-600 dark:prose-code:text-brand-400
-                                prose-code:bg-surface-100 dark:prose-code:bg-surface-800
-                                prose-pre:bg-surface-50 dark:prose-pre:bg-surface-800
+                                prose-code:bg-surface-100/50 dark:prose-code:bg-surface-800/50
+                                prose-pre:bg-surface-50/50 dark:prose-pre:bg-surface-800/50
                                 prose-blockquote:border-brand-500"
                             dangerouslySetInnerHTML={{ __html: renderedHtml }}
                         />
@@ -438,7 +488,7 @@ function MarkdownPreview({ url, fileId }: { url: string; fileId: string }) {
                 <textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    className="flex-1 w-full resize-none bg-white dark:bg-surface-900 p-6 text-sm text-surface-800 dark:text-surface-200 font-mono leading-relaxed focus:outline-none"
+                    className="flex-1 w-full resize-none bg-white/50 dark:bg-surface-900/50 p-6 text-sm text-surface-800 dark:text-surface-200 font-mono leading-relaxed focus:outline-none"
                     spellCheck={false}
                 />
             )}
@@ -488,7 +538,7 @@ function ExcelPreview({ url }: { url: string }) {
     const current = sheets[activeSheet];
 
     return (
-        <div className="flex h-full w-full flex-col overflow-hidden rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900">
+        <div className="flex h-full w-full flex-col overflow-hidden rounded-lg border border-surface-200/50 dark:border-surface-700/50 bg-white/50 dark:bg-surface-900/50">
             {/* Sheet Tabs */}
             {sheets.length > 1 && (
                 <div className="flex border-b border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/50 overflow-x-auto">
@@ -598,7 +648,7 @@ function WordPreview({ url }: { url: string }) {
     );
 
     return (
-        <div className="h-full w-full overflow-auto rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-8">
+        <div className="h-full w-full overflow-auto rounded-lg border border-surface-200/50 dark:border-surface-700/50 bg-white/50 dark:bg-surface-900/50 p-8">
             <div
                 className="prose prose-sm dark:prose-invert max-w-none
                     prose-headings:text-surface-900 dark:prose-headings:text-white
@@ -759,7 +809,7 @@ function OdtPreview({ url }: { url: string }) {
     );
 
     return (
-        <div className="h-full w-full overflow-auto rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-8">
+        <div className="h-full w-full overflow-auto rounded-lg border border-surface-200/50 dark:border-surface-700/50 bg-white/50 dark:bg-surface-900/50 p-8">
             <div
                 className="prose prose-sm dark:prose-invert max-w-none
                     prose-headings:text-surface-900 dark:prose-headings:text-white
@@ -774,3 +824,4 @@ function OdtPreview({ url }: { url: string }) {
         </div>
     );
 }
+

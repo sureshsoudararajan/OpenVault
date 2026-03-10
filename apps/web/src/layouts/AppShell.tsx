@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useFileManagerStore } from '../stores/fileManagerStore';
 import { useThemeStore } from '../stores/themeStore';
@@ -15,7 +15,7 @@ export default function AppShell() {
     const { user, logout } = useAuthStore();
     const { searchQuery, setSearchQuery, selectedTag, setSelectedTag, setCurrentFolderId } = useFileManagerStore();
     const { theme, toggleTheme } = useThemeStore();
-    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [sidebarOpen, setSidebarOpen] = useState(false); // Default closed on mobile
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
@@ -24,6 +24,10 @@ export default function AppShell() {
     const [tagContextMenu, setTagContextMenu] = useState<{ x: number, y: number, id: string } | null>(null);
 
     useEffect(() => {
+        // Set initial sidebar state based on screen size
+        const isDesktop = window.innerWidth >= 1024;
+        setSidebarOpen(isDesktop);
+
         const fetchTags = async () => {
             try {
                 const res = await tagApi.list();
@@ -151,44 +155,61 @@ export default function AppShell() {
     };
 
     return (
-        <div className={`flex h-screen ${theme === 'dark' ? 'bg-surface-950' : 'bg-surface-50'}`}>
+        <div className={`relative flex h-screen overflow-hidden ${theme === 'dark' ? 'bg-surface-950' : 'bg-surface-50'}`}>
+            {/* Mobile Sidebar Overlay */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity lg:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
             <aside
-                className={`${sidebarOpen ? 'w-64' : 'w-0 overflow-hidden'
-                    } flex flex-col border-r transition-all duration-300 ${theme === 'dark' ? 'border-surface-800 bg-surface-900/50' : 'border-surface-200 bg-white'}`}
+                className={`fixed inset-y-0 left-0 z-50 flex w-64 transform flex-col border-r transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
+                    } ${theme === 'dark' ? 'border-surface-800 bg-surface-900' : 'border-surface-200 bg-white'}`}
             >
                 {/* Logo */}
-                <div className={`flex items-center gap-3 border-b px-5 py-4 ${theme === 'dark' ? 'border-surface-800' : 'border-surface-200'}`}>
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-purple-600">
-                        <Shield className="h-5 w-5 text-white" />
-                    </div>
-                    <span className="text-lg font-bold gradient-text">OpenVault</span>
+                <div className="flex items-center justify-between border-b px-5 py-4">
+                    <Link
+                        to="/"
+                        onClick={() => { setSelectedTag(null); setCurrentFolderId(null); setSidebarOpen(window.innerWidth >= 1024); }}
+                        className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                    >
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-purple-600">
+                            <Shield className="h-5 w-5 text-white" />
+                        </div>
+                        <span className="text-lg font-bold gradient-text">OpenVault</span>
+                    </Link>
+                    <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-400 transition-colors">
+                        <X className="h-5 w-5" />
+                    </button>
                 </div>
 
                 {/* Upload Button */}
                 <div className="px-4 py-4">
-                    <label className="btn-primary flex w-full items-center justify-center gap-2 text-sm cursor-pointer">
+                    <label className="btn-primary flex w-full items-center justify-center gap-2 text-sm cursor-pointer shadow-lg shadow-brand-500/20">
                         <Upload className="h-4 w-4" />
-                        Upload Files
+                        <span>Upload Files</span>
                         <input type="file" multiple className="hidden" onChange={handleSidebarUpload} />
                     </label>
                 </div>
 
                 {/* Navigation */}
                 <nav className="flex-1 space-y-1 px-3 overflow-y-auto custom-scrollbar">
-                    <NavLink to="/" end className={({ isActive }) => `nav-item ${isActive && !selectedTag ? 'active' : ''}`} onClick={() => { setSelectedTag(null); setCurrentFolderId(null); }}>
+                    <NavLink to="/" end className={({ isActive }) => `nav-item ${isActive && !selectedTag ? 'active' : ''}`} onClick={() => { setSelectedTag(null); setCurrentFolderId(null); if (window.innerWidth < 1024) setSidebarOpen(false); }}>
                         <FolderOpen className="h-4 w-4" />
                         My Files
                     </NavLink>
-                    <NavLink to="/shared" className={({ isActive }) => `nav-item ${isActive && !selectedTag ? 'active' : ''}`} onClick={() => setSelectedTag(null)}>
+                    <NavLink to="/shared" className={({ isActive }) => `nav-item ${isActive && !selectedTag ? 'active' : ''}`} onClick={() => { setSelectedTag(null); if (window.innerWidth < 1024) setSidebarOpen(false); }}>
                         <Share2 className="h-4 w-4" />
                         Shared with Me
                     </NavLink>
-                    <NavLink to="/trash" className={({ isActive }) => `nav-item ${isActive && !selectedTag ? 'active' : ''}`} onClick={() => setSelectedTag(null)}>
+                    <NavLink to="/trash" className={({ isActive }) => `nav-item ${isActive && !selectedTag ? 'active' : ''}`} onClick={() => { setSelectedTag(null); if (window.innerWidth < 1024) setSidebarOpen(false); }}>
                         <Trash2 className="h-4 w-4" />
                         Trash
                     </NavLink>
-                    <NavLink to="/settings" className={({ isActive }) => `nav-item ${isActive && !selectedTag ? 'active' : ''}`} onClick={() => setSelectedTag(null)}>
+                    <NavLink to="/settings" className={({ isActive }) => `nav-item ${isActive && !selectedTag ? 'active' : ''}`} onClick={() => { setSelectedTag(null); if (window.innerWidth < 1024) setSidebarOpen(false); }}>
                         <Settings className="h-4 w-4" />
                         Settings
                     </NavLink>
@@ -211,6 +232,7 @@ export default function AppShell() {
                                         onClick={() => {
                                             setSelectedTag({ id: tag.id, name: tag.name });
                                             setCurrentFolderId(null);
+                                            if (window.innerWidth < 1024) setSidebarOpen(false);
                                             navigate('/');
                                         }}
                                         onContextMenu={(e) => handleTagContextMenu(e, tag.id)}
@@ -238,14 +260,14 @@ export default function AppShell() {
                         <HardDrive className="h-3.5 w-3.5" />
                         <span>Storage</span>
                     </div>
-                    <div className="progress-bar mt-2">
+                    <div className="progress-bar mt-2 bg-surface-100 dark:bg-surface-800 overflow-hidden rounded-full h-1.5">
                         <div
-                            className="progress-bar-fill"
+                            className="progress-bar-fill h-full bg-brand-500"
                             style={{ width: `${Math.min(storagePercent, 100)}%` }}
                         />
                     </div>
-                    <p className="mt-1.5 text-xs text-surface-500">
-                        {`${formatStorage(used)} / ${formatStorage(quota)}`}
+                    <p className="mt-1.5 text-[10px] text-surface-500 font-medium">
+                        {`${formatStorage(used)} / ${formatStorage(quota)} used`}
                     </p>
                 </div>
             </aside>
@@ -253,17 +275,17 @@ export default function AppShell() {
             {/* Main Content */}
             <div className="flex flex-1 flex-col overflow-hidden">
                 {/* Top Bar */}
-                <header className={`relative z-40 flex items-center gap-4 border-b px-6 py-3 backdrop-blur-sm ${theme === 'dark' ? 'border-surface-800 bg-surface-900/30' : 'border-surface-200 bg-white/70'}`}>
-                    <button onClick={() => setSidebarOpen(!sidebarOpen)} className="btn-ghost p-1.5">
-                        {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                <header className={`relative z-40 flex items-center gap-3 border-b px-4 lg:px-6 py-2.5 lg:py-3 backdrop-blur-md ${theme === 'dark' ? 'border-surface-800 bg-surface-950/80' : 'border-surface-200 bg-white/95'}`}>
+                    <button onClick={() => setSidebarOpen(!sidebarOpen)} className="btn-ghost p-1.5 lg:p-2 hover:bg-surface-200/50 dark:hover:bg-surface-800/50">
+                        <Menu className="h-5 w-5" />
                     </button>
 
                     {/* Search Bar */}
-                    <div className="relative flex-1 max-w-xl">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-500" />
+                    <div className="relative flex-1 max-w-xl group">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-500 transition-colors group-focus-within:text-brand-500" />
                         <input
                             type="text"
-                            placeholder="Search files and folders..."
+                            placeholder="Search..."
                             value={searchQuery}
                             onChange={(e) => {
                                 setSearchQuery(e.target.value);
@@ -271,9 +293,12 @@ export default function AppShell() {
                                     navigate('/');
                                 }
                             }}
-                            className="input-field pl-10 py-2 text-sm w-full"
+                            className="input-field pl-9 py-1.5 lg:py-2 text-xs lg:text-sm w-full bg-surface-100/50 dark:bg-surface-900/50 border-transparent focus:bg-white dark:focus:bg-surface-800"
                         />
                     </div>
+
+                    {/* Spacer to push items to the right */}
+                    <div className="flex-1" />
 
                     {/* Theme Toggle */}
                     <button
@@ -285,20 +310,20 @@ export default function AppShell() {
                     </button>
 
                     {/* User Menu */}
-                    <div className="relative ml-auto">
+                    <div className="relative">
                         <button
-                            onClick={() => setUserMenuOpen(!userMenuOpen)}
-                            className="flex items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-surface-100 dark:hover:bg-surface-800"
+                            onClick={(e) => { e.stopPropagation(); setUserMenuOpen(!userMenuOpen); }}
+                            className="flex items-center gap-2 rounded-xl p-1 lg:p-1.5 transition-all hover:bg-surface-200/50 dark:hover:bg-surface-800/50 active:scale-95"
                         >
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-sm font-semibold text-white overflow-hidden">
+                            <div className="flex h-7 w-7 lg:h-8 lg:w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-indigo-600 text-[10px] lg:text-sm font-semibold text-white overflow-hidden shadow-inner">
                                 {user?.avatarUrl ? (
                                     <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
                                 ) : (
                                     user?.name?.charAt(0).toUpperCase() || 'U'
                                 )}
                             </div>
-                            <span className={`hidden text-sm font-medium md:block ${theme === 'dark' ? 'text-surface-300' : 'text-surface-600'}`}>{user?.name}</span>
-                            <ChevronDown className="h-3.5 w-3.5 text-surface-500" />
+                            <span className="hidden text-sm font-semibold sm:block lg:max-w-[120px] truncate text-surface-900 dark:text-white">{user?.name}</span>
+                            <ChevronDown className={`h-3 w-3 text-surface-600 dark:text-surface-400 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
                         </button>
 
                         {userMenuOpen && (
@@ -321,8 +346,10 @@ export default function AppShell() {
                 </header>
 
                 {/* Page Content */}
-                <main className="flex-1 overflow-y-auto p-6">
-                    <Outlet />
+                <main className="flex-1 overflow-y-auto p-4 lg:p-6 bg-surface-50/50 dark:bg-surface-950/50">
+                    <div className="mx-auto max-w-7xl">
+                        <Outlet />
+                    </div>
                 </main>
             </div>
             {/* Global upload progress panel */}

@@ -17,6 +17,7 @@ import { collaborationRoutes } from './modules/collaboration/routes';
 import { searchRoutes } from './modules/search/routes';
 import { dedupRoutes } from './modules/dedup/routes';
 import { tagRoutes } from './modules/tags/routes';
+import { webdavRoutes } from './modules/webdav/routes';
 
 export async function buildApp() {
     const config = loadConfig();
@@ -127,6 +128,8 @@ export async function buildApp() {
         },
         { prefix: '/api' }
     );
+
+    // await app.register(webdavRoutes, { prefix: '/dav' });
 
     return app;
 }
