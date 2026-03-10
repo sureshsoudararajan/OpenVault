@@ -18,6 +18,7 @@ import { searchRoutes } from './modules/search/routes';
 import { dedupRoutes } from './modules/dedup/routes';
 import { tagRoutes } from './modules/tags/routes';
 import { webdavRoutes } from './modules/webdav/routes';
+import { ytdlpRoutes } from './modules/ytdlp/routes';
 
 export async function buildApp() {
     const config = loadConfig();
@@ -125,6 +126,7 @@ export async function buildApp() {
             await api.register(searchRoutes, { prefix: '/search' });
             await api.register(dedupRoutes, { prefix: '/dedup' });
             await api.register(tagRoutes, { prefix: '/tags' });
+            await api.register(ytdlpRoutes, { prefix: '/ytdlp' });
         },
         { prefix: '/api' }
     );

@@ -7,13 +7,14 @@ import Thumbnail from '../components/Thumbnail';
 import ShareDialog from '../components/ShareDialog';
 import DetailsDialog from '../components/DetailsDialog';
 import TagDialog from '../components/TagDialog';
+import FetchVideoDialog from '../components/FetchVideoDialog';
 import { uploadFiles } from '../services/uploadManager';
 import {
     Grid3X3, List, FolderPlus, Upload, ChevronRight,
     FileText, Image, Film, FileArchive, File, MoreVertical,
     Download, Pencil, Trash2, Share2, FolderOpen, Eye, Copy, Info, Music,
     Clipboard, CheckSquare, X, Tag as TagIcon, Palette,
-    AlignLeft, Table, Presentation
+    AlignLeft, Table, Presentation, Youtube
 } from 'lucide-react';
 
 interface FileItem {
@@ -111,6 +112,7 @@ function DashboardPage() {
     const [shareTarget, setShareTarget] = useState<{ id: string; type: 'file' | 'folder'; name: string } | null>(null);
     const [tagTarget, setTagTarget] = useState<FileItem | null>(null);
     const [showColorPicker, setShowColorPicker] = useState(false);
+    const [showFetchVideo, setShowFetchVideo] = useState(false);
 
     const PRESET_COLORS = [
         { name: 'Default', value: null },
@@ -453,6 +455,9 @@ function DashboardPage() {
                             </button>
                             <button onClick={() => setShowNewFolderInput(true)} className="btn-secondary hidden sm:flex items-center gap-2 text-xs lg:text-sm px-3 lg:px-4 py-1.5 lg:py-2">
                                 <FolderPlus className="h-3.5 w-3.5 lg:h-4 lg:w-4" /> New Folder
+                            </button>
+                            <button onClick={() => setShowFetchVideo(true)} className="btn-secondary hidden sm:flex items-center gap-2 text-xs lg:text-sm px-3 lg:px-4 py-1.5 lg:py-2 bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20 dark:hover:bg-indigo-500/20 mr-1">
+                                <Youtube className="h-4 w-4 lg:h-5 lg:w-5" /> Fetch Video
                             </button>
                             <div className="flex gap-1 group">
                                 <button onClick={() => fileInputRef.current?.click()} className="btn-primary flex items-center gap-2 text-xs lg:text-sm px-2.5 lg:px-4 py-1.5 lg:py-2 !rounded-r-none border-r border-white/20">
@@ -863,6 +868,14 @@ function DashboardPage() {
             {/* Dialogs */}
             {detailsTarget && <DetailsDialog id={detailsTarget.id} type={detailsTarget.type} name={detailsTarget.name} onClose={() => setDetailsTarget(null)} />}
             {shareTarget && <ShareDialog resourceId={shareTarget.id} resourceType={shareTarget.type} resourceName={shareTarget.name} onClose={() => setShareTarget(null)} />}
+            
+            <FetchVideoDialog
+                isOpen={showFetchVideo}
+                onClose={() => setShowFetchVideo(false)}
+                currentFolderId={folderId || null}
+                onComplete={loadContent}
+            />
+
             {previewIndex !== null && files[previewIndex] && (
                 <FilePreview fileId={files[previewIndex].id} fileName={files[previewIndex].name} mimeType={files[previewIndex].mimeType} fileSize={files[previewIndex].size}
                     onClose={() => setPreviewIndex(null)}

@@ -341,3 +341,50 @@ export const dedupApi = {
     merge: (keepFileId: string, deleteFileIds: string[]) =>
         request('/dedup/merge', { method: 'POST', body: { keepFileId, deleteFileIds } }),
 };
+
+// ============================================
+// yt-dlp APIs
+// ============================================
+
+export const ytdlpApi = {
+    fetchInfo: (url: string) => request('/ytdlp/fetch-info', { method: 'POST', body: { url } }),
+    download: (url: string, format: string, folderId: string | null) => 
+        request('/ytdlp/download', { method: 'POST', body: { url, format, folderId } }),
+    
+    // Custom method to return the raw Response for streaming NDJSON
+    downloadStream: async (url: string, format: string, folderId: string | null): Promise<Response> => {
+        const { accessToken, refreshToken, setAuth } = useAuthStore.getState();
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+
+        let response = await fetch(`${API_BASE}/ytdlp/download`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ url, format, folderId })
+        });
+
+        // Handle token refresh logic for the streaming request
+        if (response.status === 401 && refreshToken) {
+            const refreshResponse = await fetch(`${API_BASE}/auth/refresh`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken }),
+            });
+
+            if (refreshResponse.ok) {
+                const refreshData = await refreshResponse.json();
+                const { user } = useAuthStore.getState();
+                if (user) setAuth(user, refreshData.data.accessToken, refreshData.data.refreshToken);
+
+                headers['Authorization'] = `Bearer ${refreshData.data.accessToken}`;
+                response = await fetch(`${API_BASE}/ytdlp/download`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ url, format, folderId })
+                });
+            }
+        }
+        
+        return response;
+    }
+};
