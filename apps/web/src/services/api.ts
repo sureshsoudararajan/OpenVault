@@ -122,6 +122,8 @@ export const authApi = {
     resetPassword: (data: { email: string; emailCode: string; newPassword: string }) => request('/auth/reset-password', { method: 'POST', body: data }),
     sendLoginCode: (email: string) => request('/auth/send-login-code', { method: 'POST', body: { email } }),
     getMeWithToken: (token: string) => request('/users/me', { headers: { Authorization: `Bearer ${token}` } }),
+    verifyMfa: (data: { mfaToken: string; totpCode?: string; emailCode?: string }) =>
+        request('/auth/mfa/verify', { method: 'POST', body: data }),
 };
 
 // ============================================

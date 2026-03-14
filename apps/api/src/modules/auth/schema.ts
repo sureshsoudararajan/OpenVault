@@ -26,11 +26,18 @@ export const passwordConfirmSchema = z.object({
     totpCode: z.string().length(6, 'TOTP code must be 6 digits').optional(),
 });
 
+export const verifyMfaSchema = z.object({
+    mfaToken: z.string().min(1, 'MFA token is required'),
+    totpCode: z.string().optional(),
+    emailCode: z.string().optional(),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 export type EnableMfaInput = z.infer<typeof enableMfaSchema>;
 export type PasswordConfirmInput = z.infer<typeof passwordConfirmSchema>;
+export type VerifyMfaInput = z.infer<typeof verifyMfaSchema>;
 
 export const activateSchema = z.object({
     token: z.string().min(1, 'Activation token is required'),

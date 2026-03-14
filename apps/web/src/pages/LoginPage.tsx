@@ -16,6 +16,7 @@ export default function LoginPage() {
     const [isEmailCodeMode, setIsEmailCodeMode] = useState(false);
     const [sendingEmailCode, setSendingEmailCode] = useState(false);
     const [emailCodeSent, setEmailCodeSent] = useState(false);
+    const [mfaToken, setMfaToken] = useState('');
 
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -29,6 +30,9 @@ export default function LoginPage() {
     useEffect(() => {
         const accessToken = searchParams.get('accessToken');
         const refreshToken = searchParams.get('refreshToken');
+        const mfaRequiredParam = searchParams.get('mfaRequired');
+        const mfaTokenParam = searchParams.get('mfaToken');
+        const emailParam = searchParams.get('email');
         const errorParam = searchParams.get('error');
 
         if (accessToken && refreshToken) {
@@ -39,6 +43,10 @@ export default function LoginPage() {
             }).catch(() => {
                 setError('Failed to complete social login');
             });
+        } else if (mfaRequiredParam === 'true' && mfaTokenParam) {
+            setRequireMfa(true);
+            setMfaToken(mfaTokenParam);
+            if (emailParam) setEmail(emailParam);
         } else if (errorParam) {
             setError(errorParam);
         }
@@ -50,15 +58,38 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            const payload: any = { email, password };
-            if (requireMfa && totpCode) {
+            let res: any;
+
+            if (mfaToken) {
+                // Verifying MFA following an OAuth redirect or partial login
+                const payload: any = { mfaToken };
                 if (isEmailCodeMode) {
                     payload.emailCode = totpCode;
                 } else {
                     payload.totpCode = totpCode;
                 }
+                res = await authApi.verifyMfa(payload);
+            } else {
+                // Regular login
+                const payload: any = { email, password };
+                if (requireMfa && totpCode) {
+                    if (isEmailCodeMode) {
+                        payload.emailCode = totpCode;
+                    } else {
+                        payload.totpCode = totpCode;
+                    }
+                }
+                res = await authApi.login(payload);
+                
+                // If the regular login returns an MFA token (if we ever use it there too)
+                if (res.data.mfaRequired) {
+                    setRequireMfa(true);
+                    setMfaToken(res.data.mfaToken);
+                    setLoading(false);
+                    return;
+                }
             }
-            const res: any = await authApi.login(payload);
+
             setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
             navigate('/');
         } catch (err: any) {

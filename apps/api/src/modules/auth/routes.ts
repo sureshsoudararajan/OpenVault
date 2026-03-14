@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { registerSchema, loginSchema, refreshTokenSchema, enableMfaSchema, passwordConfirmSchema, activateSchema, forgotPasswordSchema, resetPasswordSchema } from './schema';
+import { registerSchema, loginSchema, refreshTokenSchema, enableMfaSchema, passwordConfirmSchema, activateSchema, forgotPasswordSchema, resetPasswordSchema, verifyMfaSchema } from './schema';
 import * as authService from './service';
 import { authGuard } from '../../middleware/auth';
 import oauth2 from '@fastify/oauth2';
@@ -106,6 +106,13 @@ export async function authRoutes(app: FastifyInstance) {
         reply.send({ success: true, data: result });
     });
 
+    // POST /api/auth/mfa/verify — Complete login with MFA
+    app.post('/mfa/verify', async (request, reply) => {
+        const body = verifyMfaSchema.parse(request.body);
+        const result = await authService.verifyMfa(body, request.ip, request.headers['user-agent']);
+        reply.send({ success: true, data: result });
+    });
+
     // ---- OAuth2 Support ----
 
     if (config.oauth.google.clientId && config.oauth.google.clientSecret) {
@@ -130,7 +137,7 @@ export async function authRoutes(app: FastifyInstance) {
                     headers: { Authorization: `Bearer ${token.access_token}` },
                 });
 
-                const result = await authService.loginWithOAuth({
+                const result: any = await authService.loginWithOAuth({
                     id: profile.sub,
                     email: profile.email,
                     name: profile.name,
@@ -138,11 +145,16 @@ export async function authRoutes(app: FastifyInstance) {
                     provider: 'google'
                 }, request.ip, request.headers['user-agent']);
 
-                // Redirect to frontend with tokens in URL (briefly) or set cookies
-                // Usually for SPA, we redirect back to a frontend route that handles the tokens
                 const redirectUrl = new URL(`${config.frontendUrl}/login`);
-                redirectUrl.searchParams.set('accessToken', result.accessToken);
-                redirectUrl.searchParams.set('refreshToken', result.refreshToken);
+                
+                if (result.mfaRequired) {
+                    redirectUrl.searchParams.set('mfaRequired', 'true');
+                    redirectUrl.searchParams.set('mfaToken', result.mfaToken);
+                    redirectUrl.searchParams.set('email', result.email);
+                } else {
+                    redirectUrl.searchParams.set('accessToken', result.accessToken);
+                    redirectUrl.searchParams.set('refreshToken', result.refreshToken);
+                }
 
                 return reply.redirect(redirectUrl.toString());
             } catch (err: any) {
@@ -184,7 +196,7 @@ export async function authRoutes(app: FastifyInstance) {
                     email = emails.find((e: any) => e.primary && e.verified)?.email || emails[0]?.email;
                 }
 
-                const result = await authService.loginWithOAuth({
+                const result: any = await authService.loginWithOAuth({
                     id: String(profile.id),
                     email,
                     name: profile.name || profile.login,
@@ -193,8 +205,15 @@ export async function authRoutes(app: FastifyInstance) {
                 }, request.ip, request.headers['user-agent']);
 
                 const redirectUrl = new URL(`${config.frontendUrl}/login`);
-                redirectUrl.searchParams.set('accessToken', result.accessToken);
-                redirectUrl.searchParams.set('refreshToken', result.refreshToken);
+                
+                if (result.mfaRequired) {
+                    redirectUrl.searchParams.set('mfaRequired', 'true');
+                    redirectUrl.searchParams.set('mfaToken', result.mfaToken);
+                    redirectUrl.searchParams.set('email', result.email);
+                } else {
+                    redirectUrl.searchParams.set('accessToken', result.accessToken);
+                    redirectUrl.searchParams.set('refreshToken', result.refreshToken);
+                }
 
                 return reply.redirect(redirectUrl.toString());
             } catch (err: any) {

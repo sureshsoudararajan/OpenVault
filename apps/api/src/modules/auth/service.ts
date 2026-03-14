@@ -9,7 +9,7 @@ authenticator.options = { window: 1 };
 import prisma from '../../db/index';
 import { loadConfig } from '@openvault/config';
 import { generateUrlSafeToken } from '@openvault/crypto';
-import type { RegisterInput, LoginInput } from './schema';
+import type { RegisterInput, LoginInput, VerifyMfaInput } from './schema';
 import { sendActivationEmail, sendPasswordResetEmail, sendSecondaryVerificationCode, sendLoginVerificationCode } from './email.service';
 
 const config = loadConfig();
@@ -162,6 +162,15 @@ export async function loginWithOAuth(profile: { id: string, email: string, name:
         });
     }
 
+    if (user.mfaEnabled) {
+        const mfaToken = jwt.sign({ sub: user.id, purpose: 'mfa_verification' }, config.jwt.accessSecret, { expiresIn: '5m' });
+        return {
+            mfaRequired: true,
+            mfaToken,
+            email: user.email
+        };
+    }
+
     const tokens = await createSession(user.id, user.email, user.role, ipAddress, userAgent);
     return {
         user: { id: user.id, email: user.email, name: user.name, role: user.role, avatarUrl: user.avatarUrl, mfaEnabled: user.mfaEnabled },
@@ -197,6 +206,48 @@ export async function refreshAccessToken(refreshToken: string) {
     const accessToken = generateAccessToken(session.user.id, session.user.email, session.user.role);
 
     return { accessToken, refreshToken: newRefreshToken };
+}
+
+/**
+ * Verify MFA and complete login (for both traditional and OAuth flows).
+ */
+export async function verifyMfa(input: VerifyMfaInput, ipAddress?: string, userAgent?: string) {
+    try {
+        const payload: any = jwt.verify(input.mfaToken, config.jwt.accessSecret);
+        if (payload.purpose !== 'mfa_verification') throw new Error('Invalid token purpose');
+
+        const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+        if (!user || !user.totpSecret) throw new Error('User or secret not found');
+
+        let isMfaValid = false;
+
+        // Try email code
+        if (input.emailCode) {
+            if (user.emailCode === input.emailCode && user.emailCodeExpires && user.emailCodeExpires > new Date()) {
+                isMfaValid = true;
+                await prisma.user.update({ where: { id: user.id }, data: { emailCode: null, emailCodeExpires: null } });
+            }
+        }
+
+        // Try TOTP
+        if (!isMfaValid && input.totpCode) {
+            isMfaValid = authenticator.verify({ token: input.totpCode, secret: user.totpSecret });
+        }
+
+        if (!isMfaValid) {
+            throw Object.assign(new Error('Invalid MFA code'), { statusCode: 401, code: 'INVALID_MFA' });
+        }
+
+        const tokens = await createSession(user.id, user.email, user.role, ipAddress, userAgent);
+        return {
+            user: { id: user.id, email: user.email, name: user.name, role: user.role, avatarUrl: user.avatarUrl, mfaEnabled: user.mfaEnabled },
+            ...tokens,
+        };
+
+    } catch (err: any) {
+        if (err.name === 'TokenExpiredError') throw Object.assign(new Error('MFA session expired'), { statusCode: 410, code: 'TOKEN_EXPIRED' });
+        throw err;
+    }
 }
 
 /**
