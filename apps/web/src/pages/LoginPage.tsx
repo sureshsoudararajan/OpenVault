@@ -32,7 +32,7 @@ export default function LoginPage() {
             authApi.getMeWithToken(accessToken).then((res: any) => {
                 setAuth(res.data, accessToken, refreshToken);
                 navigate('/');
-            }).catch((_err) => {
+            }).catch(() => {
                 setError('Failed to complete social login');
             });
         } else if (errorParam) {
