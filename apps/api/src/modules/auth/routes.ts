@@ -1,7 +1,12 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { registerSchema, loginSchema, refreshTokenSchema, enableMfaSchema, passwordConfirmSchema, activateSchema, forgotPasswordSchema, resetPasswordSchema } from './schema';
 import * as authService from './service';
 import { authGuard } from '../../middleware/auth';
+import oauth2 from '@fastify/oauth2';
+import axios from 'axios';
+import { loadConfig } from '@openvault/config';
+
+const config = loadConfig();
 
 export async function authRoutes(app: FastifyInstance) {
     // POST /api/auth/register
@@ -100,4 +105,102 @@ export async function authRoutes(app: FastifyInstance) {
         const result = await authService.sendLoginEmailCode(body.email);
         reply.send({ success: true, data: result });
     });
+
+    // ---- OAuth2 Support ----
+
+    if (config.oauth.google.clientId && config.oauth.google.clientSecret) {
+        await app.register(oauth2, {
+            name: 'googleOAuth2',
+            scope: ['profile', 'email'],
+            credentials: {
+                client: {
+                    id: config.oauth.google.clientId,
+                    secret: config.oauth.google.clientSecret,
+                },
+                auth: oauth2.GOOGLE_CONFIGURATION,
+            },
+            startRedirectPath: '/google',
+            callbackUri: `${config.apiUrl}/auth/google/callback`,
+        });
+
+        app.get('/google/callback', async (request: FastifyRequest, reply: FastifyReply) => {
+            try {
+                const { token } = await (app as any).googleOAuth2.getAccessTokenFromAuthorizationCodeFlow(request);
+                const { data: profile } = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { Authorization: `Bearer ${token.access_token}` },
+                });
+
+                const result = await authService.loginWithOAuth({
+                    id: profile.sub,
+                    email: profile.email,
+                    name: profile.name,
+                    avatarUrl: profile.picture,
+                    provider: 'google'
+                }, request.ip, request.headers['user-agent']);
+
+                // Redirect to frontend with tokens in URL (briefly) or set cookies
+                // Usually for SPA, we redirect back to a frontend route that handles the tokens
+                const redirectUrl = new URL(`${config.frontendUrl}/login`);
+                redirectUrl.searchParams.set('accessToken', result.accessToken);
+                redirectUrl.searchParams.set('refreshToken', result.refreshToken);
+
+                return reply.redirect(redirectUrl.toString());
+            } catch (err: any) {
+                app.log.error(err, 'Google OAuth Callback Error');
+                return reply.redirect(`${config.frontendUrl}/login?error=OAuth failed`);
+            }
+        });
+    }
+
+    if (config.oauth.github.clientId && config.oauth.github.clientSecret) {
+        await app.register(oauth2, {
+            name: 'githubOAuth2',
+            scope: ['user:email', 'read:user'],
+            credentials: {
+                client: {
+                    id: config.oauth.github.clientId,
+                    secret: config.oauth.github.clientSecret,
+                },
+                auth: oauth2.GITHUB_CONFIGURATION,
+            },
+            startRedirectPath: '/github',
+            callbackUri: `${config.apiUrl}/auth/github/callback`,
+        });
+
+        app.get('/github/callback', async (request: FastifyRequest, reply: FastifyReply) => {
+            try {
+                const { token } = await (app as any).githubOAuth2.getAccessTokenFromAuthorizationCodeFlow(request);
+
+                const { data: profile } = await axios.get('https://api.github.com/user', {
+                    headers: { Authorization: `Bearer ${token.access_token}` },
+                });
+
+                // GitHub might not return email in primary profile if private
+                let email = profile.email;
+                if (!email) {
+                    const { data: emails } = await axios.get('https://api.github.com/user/emails', {
+                        headers: { Authorization: `Bearer ${token.access_token}` },
+                    });
+                    email = emails.find((e: any) => e.primary && e.verified)?.email || emails[0]?.email;
+                }
+
+                const result = await authService.loginWithOAuth({
+                    id: String(profile.id),
+                    email,
+                    name: profile.name || profile.login,
+                    avatarUrl: profile.avatar_url,
+                    provider: 'github'
+                }, request.ip, request.headers['user-agent']);
+
+                const redirectUrl = new URL(`${config.frontendUrl}/login`);
+                redirectUrl.searchParams.set('accessToken', result.accessToken);
+                redirectUrl.searchParams.set('refreshToken', result.refreshToken);
+
+                return reply.redirect(redirectUrl.toString());
+            } catch (err: any) {
+                app.log.error(err, 'GitHub OAuth Callback Error');
+                return reply.redirect(`${config.frontendUrl}/login?error=OAuth failed`);
+            }
+        });
+    }
 }

@@ -10,7 +10,7 @@ import prisma from '../../db/index';
 import { loadConfig } from '@openvault/config';
 import { generateUrlSafeToken } from '@openvault/crypto';
 import type { RegisterInput, LoginInput } from './schema';
-import { sendActivationEmail, sendPasswordResetEmail, sendSecondaryVerificationCode } from './email.service';
+import { sendActivationEmail, sendPasswordResetEmail, sendSecondaryVerificationCode, sendLoginVerificationCode } from './email.service';
 
 const config = loadConfig();
 
@@ -113,6 +113,53 @@ export async function loginUser(input: LoginInput, ipAddress?: string, userAgent
         if (!isMfaValid) {
             throw Object.assign(new Error('Invalid MFA code'), { statusCode: 401, code: 'INVALID_MFA' });
         }
+    }
+
+    const tokens = await createSession(user.id, user.email, user.role, ipAddress, userAgent);
+    return {
+        user: { id: user.id, email: user.email, name: user.name, role: user.role, avatarUrl: user.avatarUrl, mfaEnabled: user.mfaEnabled },
+        ...tokens,
+    };
+}
+
+/**
+ * Handle OAuth login/registration.
+ */
+export async function loginWithOAuth(profile: { id: string, email: string, name: string, avatarUrl?: string, provider: 'google' | 'github' }, ipAddress?: string, userAgent?: string) {
+    let user = await prisma.user.findFirst({
+        where: {
+            OR: [
+                { oauthProvider: profile.provider, oauthId: profile.id },
+                { email: profile.email }
+            ]
+        }
+    });
+
+    if (user) {
+        // Update user if they exist but don't have OAuth linked or have updated info
+        user = await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                oauthProvider: profile.provider,
+                oauthId: profile.id,
+                name: user.name || profile.name,
+                avatarUrl: user.avatarUrl || profile.avatarUrl,
+                isActivated: true // OAuth accounts are considered verified
+            }
+        });
+    } else {
+        // Create new user
+        user = await prisma.user.create({
+            data: {
+                email: profile.email,
+                name: profile.name,
+                avatarUrl: profile.avatarUrl,
+                oauthProvider: profile.provider,
+                oauthId: profile.id,
+                isActivated: true,
+                role: 'member'
+            }
+        });
     }
 
     const tokens = await createSession(user.id, user.email, user.role, ipAddress, userAgent);
