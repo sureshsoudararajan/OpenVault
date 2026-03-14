@@ -56,7 +56,7 @@
 - **Public Share Links** — Generate token-based shareable URLs for any file or folder
 - **Password Protection** — Secure shared links with Argon2id-hashed passwords
 - **OTP Verification** — Optional 6-digit OTP code for shared links
-- **Expiry & Download Limits** — Auto-expire links, set opens-at date, or cap total download count
+- **Expiry & Download Limits** — Auto-expire links, set opens-at date (with automatic reveal & validation), or cap total download count
 - **Permission Control** — Viewer / Editor / Owner role-based sharing per file/folder, with optional expiry
 - **Threaded Comments** — Add comments on files with nested reply threads
 - **Activity Timeline** — Full audit trail of every action (upload, download, share, delete, dedup found)
@@ -68,7 +68,7 @@
 - **Distributed Key Model** — Each file's encryption key is split between a user fragment (encrypted with user passphrase) and a server fragment — both required to decrypt
 - **Argon2id Passwords** — Memory-hard password hashing (64 MB memory, 3 iterations, 4-lane parallelism)
 - **JWT + Refresh Rotation** — 15-minute access tokens with 7-day rotating refresh tokens stored as signed HttpOnly cookies
-- **TOTP Multi-Factor Authentication** — Time-based OTP (RFC 6238) compatible with Google Authenticator, Authy, and 1Password; QR code provisioning included
+- **TOTP Multi-Factor Authentication** — Time-based OTP (RFC 6238) compatible with Google Authenticator, Authy, and 1Password; enforced for OAuth login flows; QR code provisioning included
 - **MFA Recovery Codes** — Pre-generated one-time recovery codes for MFA bypass
 - **RBAC** — Role-based access control: `admin`, `member`, `guest`
 - **Rate Limiting** — 100 requests per minute per IP via `@fastify/rate-limit`
@@ -637,7 +637,7 @@ lint-and-test
     ├── npm ci
     ├── npx prisma generate
     ├── npm run lint  (TypeScript type check across all workspaces)
-    └── npm run test  (Vitest across all workspaces)
+    └── npm run test  (Vitest across all workspaces; configured to pass with no test files)
     │
     ▼  (only if lint-and-test passes)
 docker-build
