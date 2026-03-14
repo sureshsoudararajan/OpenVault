@@ -112,14 +112,14 @@ export function loadConfig(): AppConfig {
 
         oauth: {
             google: {
-                clientId: env('GOOGLE_CLIENT_ID', ''),
-                clientSecret: env('GOOGLE_CLIENT_SECRET', ''),
-                callbackUrl: env('GOOGLE_CALLBACK_URL', 'http://localhost:4000/api/auth/google/callback'),
+                clientId: env('OAUTH_GOOGLE_CLIENT_ID', ''),
+                clientSecret: env('OAUTH_GOOGLE_CLIENT_SECRET', ''),
+                callbackUrl: env('OAUTH_GOOGLE_CALLBACK_URL', 'http://localhost:4000/api/auth/google/callback'),
             },
             github: {
-                clientId: env('GITHUB_CLIENT_ID', ''),
-                clientSecret: env('GITHUB_CLIENT_SECRET', ''),
-                callbackUrl: env('GITHUB_CALLBACK_URL', 'http://localhost:4000/api/auth/github/callback'),
+                clientId: env('OAUTH_GITHUB_CLIENT_ID', ''),
+                clientSecret: env('OAUTH_GITHUB_CLIENT_SECRET', ''),
+                callbackUrl: env('OAUTH_GITHUB_CALLBACK_URL', 'http://localhost:4000/api/auth/github/callback'),
             },
         },
 
