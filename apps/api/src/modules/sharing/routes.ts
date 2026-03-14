@@ -75,7 +75,7 @@ export async function sharingRoutes(app: FastifyInstance) {
         const passwordHash = body.password ? await argon2.hash(body.password) : null;
         const otpCode = body.otpEnabled ? generateOtp() : null;
 
-        // Determine expiry — support both direct datetime and hours-from-now
+        const opensAt = body.opensAt ? new Date(body.opensAt) : null;
         let expiresAt: Date | null = null;
         if (body.expiresAt) {
             expiresAt = new Date(body.expiresAt);
@@ -83,7 +83,13 @@ export async function sharingRoutes(app: FastifyInstance) {
             expiresAt = new Date(Date.now() + body.expiresIn * 3600 * 1000);
         }
 
-        const opensAt = body.opensAt ? new Date(body.opensAt) : null;
+        // Validation: opensAt must be before expiresAt
+        if (opensAt && expiresAt && opensAt >= expiresAt) {
+            return reply.status(400).send({
+                success: false,
+                error: { code: 'INVALID_DATES', message: 'Opening time must be before expiration time' },
+            });
+        }
 
         const shareLink = await prisma.shareLink.create({
             data: {

@@ -75,26 +75,50 @@ export default function ShareLinkPage() {
         localStorage.setItem('theme', theme);
     }, [theme]);
 
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+
     // Fetch link data
     useEffect(() => {
         if (!token) return;
+        setLoading(true);
         sharingApi.getLink(token)
-            .then((res: any) => setData(res.data))
+            .then((res: any) => {
+                setData(res.data);
+                setError('');
+                setErrorCode('');
+            })
             .catch((err: any) => {
                 setError(err.message || 'Link unavailable');
                 setErrorCode(err.code || '');
                 // Completely overwrite data with error metadata (if present) to prevent stale file data leaks
-                if (err.data?.opensAt) {
-                    setData({ opensAt: err.data.opensAt });
+                if (err.data?.opensAt || err.data?.expiresAt) {
+                    setData({
+                        opensAt: err.data.opensAt || null,
+                        expiresAt: err.data.expiresAt || null
+                    });
                 } else {
                     setData(null);
                 }
             })
             .finally(() => setLoading(false));
-    }, [token]);
+    }, [token, refreshTrigger]);
 
     const opensCountdown = useCountdown(data?.opensAt);
     const expiresCountdown = useCountdown(data?.expiresAt);
+
+    // Auto-refresh when countdowns hit zero
+    useEffect(() => {
+        if (opensCountdown.expired && errorCode === 'NOT_YET_OPEN') {
+            const timer = setTimeout(() => setRefreshTrigger(prev => prev + 1), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [opensCountdown.expired, errorCode]);
+
+    useEffect(() => {
+        if (expiresCountdown.expired && isAuthenticated && data?.file) {
+            setRefreshTrigger(prev => prev + 1);
+        }
+    }, [expiresCountdown.expired]);
 
     const handleVerifyPassword = async () => {
         if (!token || !passwordInput) return;

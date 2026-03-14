@@ -55,7 +55,7 @@ function DateTimePicker({ value, onChange, label, icon }: {
                     type="date"
                     value={date}
                     onChange={(e) => update(e.target.value, h12, mins, ampm)}
-                    className="input-field text-sm flex-1"
+                    className="input-field text-sm flex-1 bg-surface-50 dark:bg-surface-800"
                 />
                 {/* Time row */}
                 <div className="flex items-center gap-1 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 px-2 py-1.5">
@@ -66,7 +66,9 @@ function DateTimePicker({ value, onChange, label, icon }: {
                         className="bg-transparent text-sm text-surface-900 dark:text-white focus:outline-none"
                     >
                         {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
-                            <option key={h} value={h}>{String(h).padStart(2, '0')}</option>
+                            <option key={h} value={h} className="bg-white dark:bg-surface-800 text-surface-900 dark:text-white">
+                                {String(h).padStart(2, '0')}
+                            </option>
                         ))}
                     </select>
                     <span className="text-surface-400 font-bold text-sm">:</span>
@@ -77,7 +79,9 @@ function DateTimePicker({ value, onChange, label, icon }: {
                         className="bg-transparent text-sm text-surface-900 dark:text-white focus:outline-none"
                     >
                         {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((min) => (
-                            <option key={min} value={min}>{String(min).padStart(2, '0')}</option>
+                            <option key={min} value={min} className="bg-white dark:bg-surface-800 text-surface-900 dark:text-white">
+                                {String(min).padStart(2, '0')}
+                            </option>
                         ))}
                     </select>
                     {/* AM/PM */}
@@ -86,8 +90,8 @@ function DateTimePicker({ value, onChange, label, icon }: {
                         onChange={(e) => update(date, h12, mins, e.target.value)}
                         className="bg-transparent text-sm font-semibold text-brand-600 dark:text-brand-400 focus:outline-none"
                     >
-                        <option value="AM">AM</option>
-                        <option value="PM">PM</option>
+                        <option value="AM" className="bg-white dark:bg-surface-800 text-surface-900 dark:text-white">AM</option>
+                        <option value="PM" className="bg-white dark:bg-surface-800 text-surface-900 dark:text-white">PM</option>
                     </select>
                 </div>
                 {/* Clear */}
@@ -124,6 +128,8 @@ export default function ShareDialog({ resourceId, resourceType, resourceName, on
     const [maxDownloads, setMaxDownloads] = useState('');
     const [permission, setPermission] = useState<'viewer' | 'editor'>('viewer');
     const [otpEnabled, setOtpEnabled] = useState(false);
+
+    const isDateInvalid = !!(opensAt && expiresAt && new Date(opensAt) >= new Date(expiresAt));
 
     // Email invite state
     const [inviteEmail, setInviteEmail] = useState('');
@@ -339,20 +345,30 @@ export default function ShareDialog({ resourceId, resourceType, resourceName, on
                                     </div>
 
                                     {/* Opens At */}
-                                    <DateTimePicker
-                                        label="Opens at (optional)"
-                                        icon={<CalendarClock className="h-3.5 w-3.5" />}
-                                        value={opensAt}
-                                        onChange={setOpensAt}
-                                    />
+                                    <div className="space-y-1">
+                                        <DateTimePicker
+                                            label="Opens at (optional)"
+                                            icon={<CalendarClock className="h-3.5 w-3.5" />}
+                                            value={opensAt}
+                                            onChange={setOpensAt}
+                                        />
+                                        <p className="text-[10px] text-surface-400 italic">Leave empty to open immediately</p>
+                                    </div>
 
                                     {/* Expires At */}
-                                    <DateTimePicker
-                                        label="Expires at (optional)"
-                                        icon={<Clock className="h-3.5 w-3.5" />}
-                                        value={expiresAt}
-                                        onChange={setExpiresAt}
-                                    />
+                                    <div className="space-y-1">
+                                        <DateTimePicker
+                                            label="Expires at (optional)"
+                                            icon={<Clock className={`h-3.5 w-3.5 ${isDateInvalid ? 'text-red-500' : ''}`} />}
+                                            value={expiresAt}
+                                            onChange={setExpiresAt}
+                                        />
+                                        {isDateInvalid ? (
+                                            <p className="text-[10px] text-red-500 font-medium animate-pulse">Warning: Expiration must be after opening time</p>
+                                        ) : (
+                                            <p className="text-[10px] text-surface-400 italic">Leave empty for no expiry</p>
+                                        )}
+                                    </div>
 
                                     {/* Max Downloads */}
                                     <div>
@@ -413,7 +429,7 @@ export default function ShareDialog({ resourceId, resourceType, resourceName, on
 
                                     <button
                                         onClick={handleCreateLink}
-                                        disabled={linkLoading}
+                                        disabled={linkLoading || isDateInvalid}
                                         className="btn-primary flex w-full items-center justify-center gap-2 text-sm"
                                     >
                                         {linkLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
