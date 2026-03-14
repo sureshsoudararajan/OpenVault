@@ -18,10 +18,11 @@ COPY apps/api/package.json ./apps/api/
 
 # Install dependencies (Cached unless package.jsons change)
 # Increase NPM timeout and retries for more resilient builds
-RUN npm config set fetch-retry-maxtimeout 600000 && \
+RUN npm config set registry https://registry.npmjs.org/ && \
+    npm config set fetch-retry-maxtimeout 600000 && \
     npm config set fetch-retry-mintimeout 10000 && \
     npm config set fetch-retries 5 && \
-    npm install --include-workspace-root
+    npm ci --include-workspace-root
 
 # Copy source
 COPY packages/ ./packages/

@@ -139,8 +139,6 @@ export const userApi = {
     }) => request('/users/me', { method: 'PATCH', body: data }),
     updateAvatar: (formData: FormData) =>
         request('/users/me/avatar', { method: 'POST', body: formData }),
-    getWebdavDetails: () => request('/users/me/webdav'),
-    generateWebdavToken: () => request('/users/me/webdav-token', { method: 'POST' }),
 };
 
 // ============================================
@@ -348,9 +346,9 @@ export const dedupApi = {
 
 export const ytdlpApi = {
     fetchInfo: (url: string) => request('/ytdlp/fetch-info', { method: 'POST', body: { url } }),
-    download: (url: string, format: string, folderId: string | null) => 
+    download: (url: string, format: string, folderId: string | null) =>
         request('/ytdlp/download', { method: 'POST', body: { url, format, folderId } }),
-    
+
     // Custom method to return the raw Response for streaming NDJSON
     downloadStream: async (url: string, format: string, folderId: string | null): Promise<Response> => {
         const { accessToken, refreshToken, setAuth } = useAuthStore.getState();
@@ -384,7 +382,7 @@ export const ytdlpApi = {
                 });
             }
         }
-        
+
         return response;
     }
 };
