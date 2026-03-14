@@ -92,20 +92,10 @@ export async function loginUser(input: LoginInput, ipAddress?: string, userAgent
 
             // Fallback to recovery backup codes
             if (!isMfaValid && input.totpCode.length === 8) {
-                const recoveryCodes = await prisma.recoveryCode.findMany({
-                    where: { userId: user.id, used: false }
-                });
-
-                for (const record of recoveryCodes) {
-                    const isMatch = await argon2.verify(record.codeHash, input.totpCode);
-                    if (isMatch) {
-                        isMfaValid = true;
-                        await prisma.recoveryCode.update({
-                            where: { id: record.id },
-                            data: { used: true, usedAt: new Date() }
-                        });
-                        break;
-                    }
+                isMfaValid = await validateRecoveryCode(user.id, input.totpCode);
+                
+                if (!isMfaValid) {
+                    throw Object.assign(new Error('Wrong recovery code'), { statusCode: 401, code: 'INVALID_RECOVERY_CODE' });
                 }
             }
         }
@@ -232,6 +222,15 @@ export async function verifyMfa(input: VerifyMfaInput, ipAddress?: string, userA
         // Try TOTP
         if (!isMfaValid && input.totpCode) {
             isMfaValid = authenticator.verify({ token: input.totpCode, secret: user.totpSecret });
+
+            // Try recovery codes
+            if (!isMfaValid && input.totpCode.length === 8) {
+                isMfaValid = await validateRecoveryCode(user.id, input.totpCode);
+                
+                if (!isMfaValid) {
+                    throw Object.assign(new Error('Wrong recovery code'), { statusCode: 401, code: 'INVALID_RECOVERY_CODE' });
+                }
+            }
         }
 
         if (!isMfaValid) {
@@ -484,6 +483,28 @@ function parseDuration(duration: string): number {
     };
 
     return value * (multipliers[unit] ?? 24 * 3600 * 1000);
+}
+
+/**
+ * Invalidate a recovery code for the given user if correct.
+ */
+async function validateRecoveryCode(userId: string, code: string): Promise<boolean> {
+    const recoveryCodes = await prisma.recoveryCode.findMany({
+        where: { userId, used: false }
+    });
+
+    for (const record of recoveryCodes) {
+        const isMatch = await argon2.verify(record.codeHash, code);
+        if (isMatch) {
+            await prisma.recoveryCode.update({
+                where: { id: record.id },
+                data: { used: true, usedAt: new Date() }
+            });
+            return true;
+        }
+    }
+    
+    return false;
 }
 
 export async function activateAccount(token: string) {
