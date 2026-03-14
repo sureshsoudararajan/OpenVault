@@ -211,7 +211,7 @@ export async function generateMfaSecret(userId: string) {
 
     // Generate Base64 QR Code with higher error correction and margin for better scanning
     const qrCodeUrl = await QRCode.toDataURL(otpauthUrl, {
-        errorCorrectionLevel: 'H',
+        errorCorrectionLevel: 'M',
         margin: 4,
         scale: 8,
         color: {

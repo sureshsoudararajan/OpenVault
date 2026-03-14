@@ -478,7 +478,7 @@ export default function SettingsPage() {
 
                             <div className="flex flex-col sm:flex-row gap-8 items-center bg-surface-50 dark:bg-surface-900/50 p-6 rounded-2xl border border-surface-100 dark:border-surface-700/50">
                                 <div className="bg-white p-3 rounded-xl flex-shrink-0 shadow-sm ring-1 ring-surface-200">
-                                    <img src={mfaSetup.qrCodeUrl} alt="MFA QR Code" className="w-32 h-32" />
+                                    <img src={mfaSetup.qrCodeUrl} alt="MFA QR Code" className="w-48 h-48" />
                                 </div>
                                 <div className="flex-1 w-full space-y-4">
                                     <div>
