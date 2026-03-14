@@ -153,7 +153,8 @@ OpenVault/                          # npm workspaces monorepo root
 │   │           ├── collaboration/  #     Comments, activity timeline
 │   │           ├── search/         #     MeiliSearch + PostgreSQL fallback
 │   │           ├── dedup/          #     Duplicate detection API
-│   │           └── tags/           #     Tag CRUD & file tagging
+│   │           ├── tags/           #     Tag CRUD & file tagging
+│   │           └── ytdlp/          #     Media fetching via yt-dlp
 │   │
 │   └── web/                        # React frontend (@openvault/web)
 │       └── src/
@@ -177,6 +178,7 @@ OpenVault/                          # npm workspaces monorepo root
 │           │   ├── ShareDialog.tsx      # Share link creation & permission management
 │           │   ├── DetailsDialog.tsx    # File/folder metadata panel
 │           │   ├── TagDialog.tsx        # Tag management UI
+│           │   ├── FetchVideoDialog.tsx # Media fetching dialog
 │           │   ├── Thumbnail.tsx        # Lazy-loaded file thumbnail
 │           │   └── UploadProgressPanel.tsx # Multi-file upload progress overlay
 │           ├── stores/
