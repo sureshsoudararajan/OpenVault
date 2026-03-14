@@ -104,7 +104,7 @@ export async function searchRoutes(app: FastifyInstance) {
 
             return {
                 success: true,
-                data: files.map((f) => ({ ...f, size: Number(f.size) })),
+                data: files.map((f: any) => ({ ...f, size: Number(f.size) })),
                 meta: { page, perPage, total, fallback: true },
             };
         }

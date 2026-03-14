@@ -178,7 +178,7 @@ export async function userRoutes(app: FastifyInstance) {
 
         return {
             success: true,
-            data: users.map((u) => ({ ...u, storageUsed: Number(u.storageUsed) })),
+            data: users.map((u: any) => ({ ...u, storageUsed: Number(u.storageUsed) })),
             meta: { page, perPage, total },
         };
     });

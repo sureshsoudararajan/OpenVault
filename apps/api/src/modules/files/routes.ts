@@ -224,7 +224,7 @@ export async function fileRoutes(app: FastifyInstance) {
             if (!hasAccess) {
                 const pathIds = (folder.path || '').split('/')
                     .filter(Boolean)
-                    .filter(id => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
+                    .filter((id: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
                 pathIds.push(folderId);
                 const perm = await prisma.permission.findFirst({
                     where: {
@@ -280,7 +280,7 @@ export async function fileRoutes(app: FastifyInstance) {
 
         return {
             success: true,
-            data: files.map((f) => ({ ...f, size: Number(f.size) })),
+            data: files.map((f: any) => ({ ...f, size: Number(f.size) })),
             meta: { page, perPage, total },
         };
     });
@@ -304,8 +304,7 @@ export async function fileRoutes(app: FastifyInstance) {
 
         if (!hasAccess && file.folderId && file.folder) {
             const pathIds = (file.folder.path || '').split('/')
-                .filter(Boolean)
-                .filter(fid => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(fid));
+                .filter((fid: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(fid));
             pathIds.push(file.folderId);
 
             const perm = await prisma.permission.findFirst({
@@ -336,7 +335,7 @@ export async function fileRoutes(app: FastifyInstance) {
             data: {
                 ...file,
                 size: Number(file.size),
-                versions: file.versions.map((v) => ({ ...v, size: Number(v.size) })),
+                versions: file.versions.map((v: any) => ({ ...v, size: Number(v.size) })),
             },
         };
     });
@@ -357,8 +356,7 @@ export async function fileRoutes(app: FastifyInstance) {
 
         if (!hasAccess && file.folderId && file.folder) {
             const pathIds = (file.folder.path || '').split('/')
-                .filter(Boolean)
-                .filter(fid => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(fid));
+                .filter((fid: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(fid));
             pathIds.push(file.folderId);
 
             const perm = await prisma.permission.findFirst({
@@ -372,10 +370,6 @@ export async function fileRoutes(app: FastifyInstance) {
 
         if (!hasAccess) {
             const filePerm = await prisma.permission.findFirst({
-                where: {
-                    grantedToId: request.userId,
-                    fileId: id
-                }
             });
             if (filePerm) hasAccess = true;
         }
@@ -384,7 +378,15 @@ export async function fileRoutes(app: FastifyInstance) {
             return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'File not found' } });
         }
 
-        const rawDownloadUrl = await getPresignedDownloadUrl(config.minio.bucket, file.storageKey, 300);
+        // Extract storageKey and fileName after access checks
+        const storageKey = file.storageKey;
+        const fileName = file.name;
+
+        if (!storageKey) {
+            return reply.status(400).send({ success: false, error: { code: 'NO_FILE', message: 'No file specified' } });
+        }
+
+        const rawDownloadUrl = await getPresignedDownloadUrl(config.minio.bucket, storageKey, 300);
         const downloadUrl = rewriteMinioUrl(rawDownloadUrl);
 
         // Log download
@@ -418,7 +420,7 @@ export async function fileRoutes(app: FastifyInstance) {
         if (!hasAccess && file.folderId && file.folder) {
             const pathIds = (file.folder.path || '').split('/')
                 .filter(Boolean)
-                .filter(fid => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(fid));
+                .filter((fid: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(fid));
             pathIds.push(file.folderId);
 
             const perm = await prisma.permission.findFirst({
@@ -554,23 +556,23 @@ export async function fileRoutes(app: FastifyInstance) {
         ]);
 
         // Build a set of trashed folder IDs for quick lookup
-        const trashedFolderIdSet = new Set(folders.map(f => f.id));
+        const trashedFolderIdSet = new Set(folders.map((f: any) => f.id));
 
         // Only show top-level trashed folders (parent is not trashed)
-        const topLevelFolders = folders.filter(f =>
+        const topLevelFolders = folders.filter((f: any) =>
             !f.parentId || !trashedFolderIdSet.has(f.parentId)
         );
 
         // Only show files whose parent folder is not trashed (or that have no folder)
-        const standaloneFiles = files.filter(f =>
+        const standaloneFiles = files.filter((f: any) =>
             !f.folderId || !trashedFolderIdSet.has(f.folderId)
         );
 
         return {
             success: true,
             data: {
-                files: standaloneFiles.map((f) => ({ ...f, size: Number(f.size), type: 'file' as const })),
-                folders: topLevelFolders.map((f) => ({ ...f, type: 'folder' as const })),
+                files: standaloneFiles.map((f: any) => ({ ...f, size: Number(f.size), type: 'file' as const })),
+                folders: topLevelFolders.map((f: any) => ({ ...f, type: 'folder' as const })),
             },
         };
     });
@@ -635,7 +637,7 @@ export async function fileRoutes(app: FastifyInstance) {
         }
 
         // Calculate total size to decrement
-        const totalSize = trashedFiles.reduce((sum, f) => sum + f.size, BigInt(0));
+        const totalSize = trashedFiles.reduce((sum: bigint, f: any) => sum + f.size, BigInt(0));
 
         // Delete all trashed files from DB
         await prisma.file.deleteMany({
@@ -681,7 +683,7 @@ export async function fileRoutes(app: FastifyInstance) {
         if (!hasAccess && file.folderId && file.folder) {
             const pathIds = (file.folder.path || '').split('/')
                 .filter(Boolean)
-                .filter(fid => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(fid));
+                .filter((fid: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(fid));
             pathIds.push(file.folderId);
 
             const perm = await prisma.permission.findFirst({

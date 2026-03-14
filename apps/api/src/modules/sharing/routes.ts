@@ -297,6 +297,10 @@ export async function sharingRoutes(app: FastifyInstance) {
             return reply.status(400).send({ success: false, error: { code: 'NO_FILE', message: 'No file specified' } });
         }
 
+        if (!storageKey) {
+            return reply.status(400).send({ success: false, error: { code: 'NO_FILE', message: 'No file specified' } });
+        }
+
         const rawDownloadUrl = await getPresignedDownloadUrl(config.minio.bucket, storageKey, 300);
         const downloadUrl = rewriteMinioUrl(rawDownloadUrl);
 
@@ -369,6 +373,10 @@ export async function sharingRoutes(app: FastifyInstance) {
             mimeType = file.mimeType;
             fileSize = Number(file.size);
         } else {
+            return reply.status(400).send({ success: false, error: { code: 'NO_FILE', message: 'No file specified' } });
+        }
+
+        if (!storageKey) {
             return reply.status(400).send({ success: false, error: { code: 'NO_FILE', message: 'No file specified' } });
         }
 

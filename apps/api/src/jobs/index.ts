@@ -28,7 +28,7 @@ let trashCleanupQueue: Queue;
  * Initialize all BullMQ workers and queues.
  */
 export async function initWorkers(config: AppConfig): Promise<void> {
-    const appConfig = loadConfig();
+    const appConfig = config;
     connection = new IORedis(config.redis.url, { maxRetriesPerRequest: null });
 
     // Create queues
@@ -175,8 +175,6 @@ export async function initWorkers(config: AppConfig): Promise<void> {
 
                 // 5. Trigger search re-index to include the new thumbnail
                 try {
-                    const { loadConfig } = await import('@openvault/config');
-                    const config = loadConfig();
                     // We need to fetch without the searchApi because that's a frontend thing.
                     // We directly call the API.
                     await fetch(`${config.apiUrl}/api/search/index`, {
@@ -240,7 +238,7 @@ export async function initWorkers(config: AppConfig): Promise<void> {
                         resourceType: 'file',
                         metadata: {
                             duplicateCount: duplicates.length,
-                            duplicateIds: duplicates.map(d => d.id),
+                            duplicateIds: duplicates.map((d: any) => d.id),
                             hash: sha256Hash
                         },
                     }
@@ -296,7 +294,7 @@ export async function initWorkers(config: AppConfig): Promise<void> {
 
                 // Delete from DB
                 await prisma.file.deleteMany({
-                    where: { id: { in: expiredFiles.map(f => f.id) } },
+                    where: { id: { in: expiredFiles.map((f: any) => f.id) } },
                 });
 
                 console.log(`🗑️  Permanently deleted ${expiredFiles.length} expired files`);
@@ -310,7 +308,7 @@ export async function initWorkers(config: AppConfig): Promise<void> {
 
             if (expiredFolders.length > 0) {
                 await prisma.folder.deleteMany({
-                    where: { id: { in: expiredFolders.map(f => f.id) } },
+                    where: { id: { in: expiredFolders.map((f: any) => f.id) } },
                 });
                 console.log(`🗑️  Permanently deleted ${expiredFolders.length} expired folders`);
             }

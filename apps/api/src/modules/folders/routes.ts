@@ -138,8 +138,7 @@ export async function folderRoutes(app: FastifyInstance) {
         let hasAccess = parent.userId === request.userId;
         if (!hasAccess) {
             const pathIds = (parent.path || '').split('/')
-                .filter(Boolean)
-                .filter(id => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
+                .filter((id: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
             pathIds.push(parentId);
             const perm = await prisma.permission.findFirst({
                 where: {
@@ -197,8 +196,7 @@ export async function folderRoutes(app: FastifyInstance) {
         let hasAccess = tempFolder.userId === request.userId;
         if (!hasAccess) {
             const pathIds = (tempFolder.path || '').split('/')
-                .filter(Boolean)
-                .filter(id => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
+                .filter((id: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
             pathIds.push(id);
             const perm = await prisma.permission.findFirst({
                 where: {
@@ -256,7 +254,7 @@ export async function folderRoutes(app: FastifyInstance) {
             success: true,
             data: {
                 ...folder,
-                files: folder.files.map((f) => ({ ...f, size: Number(f.size) })),
+                files: folder.files.map((f: any) => ({ ...f, size: Number(f.size) })),
                 ancestors,
             },
         };
@@ -378,7 +376,7 @@ export async function folderRoutes(app: FastifyInstance) {
             where: { folderId: { in: allFolderIds }, userId: request.userId },
             select: { id: true },
         });
-        const fileIds = files.map(f => f.id);
+        const fileIds = files.map((f: any) => f.id);
 
         // Permanently delete files from MinIO + DB
         await permanentlyDeleteFiles(fileIds);

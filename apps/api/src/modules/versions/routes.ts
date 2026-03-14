@@ -24,7 +24,7 @@ export async function versionRoutes(app: FastifyInstance) {
 
         return {
             success: true,
-            data: versions.map((v) => ({ ...v, size: Number(v.size) })),
+            data: versions.map((v: any) => ({ ...v, size: Number(v.size) })),
         };
     });
 

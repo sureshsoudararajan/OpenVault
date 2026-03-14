@@ -172,7 +172,7 @@ export async function tagRoutes(app: FastifyInstance) {
 
         return {
             success: true,
-            data: fileTags.map(ft => ({ ...ft.file, size: Number(ft.file.size) })),
+            data: fileTags.map((ft: any) => ({ ...ft.file, size: Number(ft.file.size) })),
         };
     });
 }

@@ -58,7 +58,7 @@ export async function dedupRoutes(app: FastifyInstance) {
         });
 
         // Calculate freed space
-        const freedSpace = filesToDelete.reduce((sum, f) => sum + Number(f.size), 0);
+        const freedSpace = filesToDelete.reduce((sum: number, f: any) => sum + Number(f.size), 0);
 
         await prisma.activityLog.create({
             data: {
