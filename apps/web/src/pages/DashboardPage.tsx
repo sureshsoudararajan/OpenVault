@@ -229,7 +229,15 @@ function DashboardPage() {
 
     const handleFileContextMenu = (e: React.MouseEvent, file: FileItem, index: number) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, type: 'file', id: file.id, name: file.name, mimeType: file.mimeType, fileIndex: index }); };
     const handleFolderContextMenu = (e: React.MouseEvent, folder: FolderItem) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, type: 'folder', id: folder.id, name: folder.name }); };
-    const handleBackgroundContextMenu = (e: React.MouseEvent) => { if ((e.target as HTMLElement).closest('[data-ctx]')) return; e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, type: 'background', id: '', name: '' }); };
+    const handleBackgroundContextMenu = (e: React.MouseEvent) => {
+        if ((e.target as HTMLElement).closest('[data-ctx]')) return;
+        
+        // Don't show if search is active or any dialog is open
+        if (searchQuery || showFetchVideo || shareTarget || detailsTarget || renaming) return;
+        
+        e.preventDefault();
+        setContextMenu({ x: e.clientX, y: e.clientY, type: 'background', id: '', name: '' });
+    };
     const closeContextMenu = () => setContextMenu(null);
 
     const handleCreateFolder = async () => { if (!newFolderName.trim()) return; try { await folderApi.create({ name: newFolderName, parentId: folderId }); setNewFolderName(''); setShowNewFolderInput(false); loadContent(); } catch (err) { console.error('Failed to create folder:', err); } };

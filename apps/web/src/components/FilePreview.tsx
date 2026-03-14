@@ -137,7 +137,9 @@ export default function FilePreview({
             <div className="absolute inset-0" onClick={onClose} />
 
             <div className={`relative z-10 flex flex-col ${fullscreen ? 'h-full w-full rounded-none' : 'h-[85vh] md:h-[80vh] w-full max-w-5xl rounded-3xl'
-                } overflow-hidden bg-white/95 dark:bg-surface-900/95 backdrop-blur-2xl border border-white/20 dark:border-surface-700/50 shadow-2xl transition-all duration-500`}>
+                } overflow-hidden bg-white/95 dark:bg-surface-900/95 backdrop-blur-2xl border border-white/20 dark:border-surface-700/50 shadow-2xl transition-all duration-500`}
+                onContextMenu={(e) => e.stopPropagation()}
+            >
 
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-surface-200/50 dark:border-surface-700/50 bg-white/95 dark:bg-surface-900/50 px-4 md:px-6 py-3 md:py-4 backdrop-blur-xl">

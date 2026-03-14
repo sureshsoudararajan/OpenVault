@@ -166,7 +166,7 @@ export default function AppShell() {
 
             {/* Sidebar */}
             <aside
-                className={`fixed inset-y-0 left-0 z-50 flex w-64 transform flex-col border-r transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
+                className={`fixed inset-y-0 left-0 z-50 flex w-64 transform flex-col border-r transition-transform duration-300 ease-in-out lg:relative ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:hidden'
                     } ${theme === 'dark' ? 'border-surface-800 bg-surface-900' : 'border-surface-200 bg-white'}`}
             >
                 {/* Logo */}

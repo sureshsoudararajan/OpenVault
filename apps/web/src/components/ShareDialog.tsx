@@ -254,7 +254,10 @@ export default function ShareDialog({ resourceId, resourceType, resourceName, on
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
             <div className="absolute inset-0" onClick={onClose} />
-            <div className="relative z-10 w-full max-w-md rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 shadow-2xl animate-slide-up">
+            <div 
+                className="relative z-10 w-full max-w-md rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 shadow-2xl animate-slide-up"
+                onContextMenu={(e) => e.stopPropagation()}
+            >
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-surface-200 dark:border-surface-700 px-5 py-4">
                     <div className="flex items-center gap-3">

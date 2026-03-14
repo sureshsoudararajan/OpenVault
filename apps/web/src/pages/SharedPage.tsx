@@ -82,7 +82,13 @@ export default function SharedPage() {
     const folderItems = filtered.filter((i) => i.folder);
 
     return (
-        <div className="animate-fade-in flex flex-col h-full">
+        <div 
+            className="animate-fade-in flex flex-col h-full"
+            onContextMenu={(e) => {
+                e.preventDefault();
+                // We could show a specific background menu here if needed later
+            }}
+        >
             {/* Page Header */}
             <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                 <div className="flex items-center gap-3">

@@ -177,7 +177,10 @@ export default function FetchVideoDialog({ isOpen, onClose, currentFolderId, onC
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in">
-            <div className="w-full max-w-4xl rounded-3xl bg-white shadow-2xl dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col max-h-[90vh]">
+            <div 
+                className="w-full max-w-4xl rounded-3xl bg-white shadow-2xl dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col max-h-[90vh]"
+                onContextMenu={(e) => e.stopPropagation()}
+            >
                 
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-gray-100 p-6 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
