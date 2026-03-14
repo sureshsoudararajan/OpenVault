@@ -480,10 +480,10 @@ export default function SettingsPage() {
                                 <div className="bg-white p-3 rounded-xl flex-shrink-0 shadow-sm ring-1 ring-surface-200">
                                     <img src={mfaSetup.qrCodeUrl} alt="MFA QR Code" className="w-48 h-48" />
                                 </div>
-                                <div className="flex-1 w-full space-y-4">
+                                <div className="flex-1 min-w-0 w-full space-y-4">
                                     <div>
                                         <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest mb-1.5">Manual Entry Secret</p>
-                                        <code className="block rounded-lg bg-white dark:bg-surface-950 px-3 py-2 text-xs text-brand-600 dark:text-brand-400 select-all font-mono border border-surface-200 dark:border-surface-800 text-center tracking-wider">
+                                        <code className="block rounded-lg bg-white dark:bg-surface-950 px-3 py-2 text-xs text-brand-600 dark:text-brand-400 select-all font-mono border border-surface-200 dark:border-surface-800 text-center tracking-wider break-all">
                                             {mfaSetup.secret}
                                         </code>
                                     </div>
