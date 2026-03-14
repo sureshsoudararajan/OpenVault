@@ -1,4 +1,8 @@
+import { useState, useEffect } from 'react';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Loader2, ArrowRight, RefreshCw, Send, Github } from 'lucide-react';
+import { useAuthStore } from '../stores/authStore';
+import { authApi } from '../services/api';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
