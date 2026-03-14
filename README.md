@@ -50,6 +50,7 @@
 - **Drag & Move** — Move files between folders
 - **Tags** — Create color-coded tags to label and organize files
 - **File Metadata** — Background extraction of image EXIF metadata (dimensions, format, channels, density) stored as JSONB
+- **Media Fetching** — Download videos/audio from YouTube, Twitter, TikTok, etc. directly to your vault via `yt-dlp` integration.
 
 ### 🔗 Sharing & Collaboration
 - **Public Share Links** — Generate token-based shareable URLs for any file or folder
@@ -116,7 +117,7 @@
 | **Auth** | JWT (jsonwebtoken), Argon2, otplib | Auth, hashing, TOTP |
 | **Email** | Nodemailer | Transactional email via SMTP |
 | **Encryption** | AES-256-GCM (`@openvault/crypto`) | Client & server-side encryption |
-| **Media** | Sharp (image resize/WebP), fluent-ffmpeg | Thumbnail & frame generation |
+| **Media** | Sharp (image resize/WebP), fluent-ffmpeg, youtube-dl-exec | Thumbnail, frame & media extraction |
 | **Real-time** | `@fastify/websocket` | Live presence & notifications |
 | **DevOps** | Docker, Docker Compose | Containerized deployment |
 | **CI/CD** | GitHub Actions | Lint, test, Docker build on push |
@@ -525,6 +526,13 @@ All endpoints are prefixed with `/api`. Protected routes (`✅`) require a valid
 | `DELETE` | `/tags/:id` | Delete a tag | ✅ |
 | `POST` | `/tags/:tagId/files/:fileId` | Attach a tag to a file | ✅ |
 | `DELETE` | `/tags/:tagId/files/:fileId` | Remove a tag from a file | ✅ |
+
+### Media Fetching (`/api/ytdlp`)
+
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| `POST` | `/ytdlp/fetch-info` | Fetch video metadata and available formats from a URL | ✅ |
+| `POST` | `/ytdlp/download` | Download a specific format directly to the vault (NDJSON stream) | ✅ |
 
 ---
 
