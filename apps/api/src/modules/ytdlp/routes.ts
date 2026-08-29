@@ -36,7 +36,6 @@ export async function ytdlpRoutes(app: FastifyInstance) {
                 noWarnings: true,
                 noCheckCertificates: true,
                 preferFreeFormats: true,
-                youtubeSkipDashManifest: true,
             });
 
             return reply.send({
