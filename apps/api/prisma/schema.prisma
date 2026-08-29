@@ -15,42 +15,43 @@ datasource db {
 // ============================================
 
 model User {
-  id            String   @id @default(uuid()) @db.Uuid
-  email         String   @unique @db.VarChar(255)
-  passwordHash  String?  @map("password_hash") @db.VarChar(255)
-  name          String   @db.VarChar(100)
-  avatarUrl     String?  @map("avatar_url") @db.VarChar(500)
-  oauthProvider String?  @map("oauth_provider") @db.VarChar(20)
-  oauthId       String?  @map("oauth_id") @db.VarChar(255)
-  totpSecret    String?  @map("totp_secret") @db.VarChar(255)
-  mfaEnabled    Boolean  @default(false) @map("mfa_enabled")
-  role          String   @default("member") @db.VarChar(20)
-  isActivated   Boolean  @default(false) @map("is_activated")
-  activationToken String?  @map("activation_token") @db.VarChar(255)
-  activationExpires DateTime? @map("activation_expires")
-  resetPasswordToken String?  @map("reset_password_token") @db.VarChar(255)
+  id                   String    @id @default(uuid()) @db.Uuid
+  email                String    @unique @db.VarChar(255)
+  passwordHash         String?   @map("password_hash") @db.VarChar(255)
+  name                 String    @db.VarChar(100)
+  avatarUrl            String?   @map("avatar_url") @db.VarChar(500)
+  oauthProvider        String?   @map("oauth_provider") @db.VarChar(20)
+  oauthId              String?   @map("oauth_id") @db.VarChar(255)
+  totpSecret           String?   @map("totp_secret") @db.VarChar(255)
+  mfaEnabled           Boolean   @default(false) @map("mfa_enabled")
+  role                 String    @default("member") @db.VarChar(20)
+  isActivated          Boolean   @default(false) @map("is_activated")
+  activationToken      String?   @map("activation_token") @db.VarChar(255)
+  activationExpires    DateTime? @map("activation_expires")
+  resetPasswordToken   String?   @map("reset_password_token") @db.VarChar(255)
   resetPasswordExpires DateTime? @map("reset_password_expires")
-  secondaryEmail String?  @map("secondary_email") @db.VarChar(255)
-  emailCode     String?  @map("email_code") @db.VarChar(10)
-  emailCodeExpires DateTime? @map("email_code_expires")
-  storageQuota  BigInt   @default(5368709120) @map("storage_quota")
-  storageUsed   BigInt   @default(0) @map("storage_used")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  secondaryEmail       String?   @map("secondary_email") @db.VarChar(255)
+  emailCode            String?   @map("email_code") @db.VarChar(10)
+  emailCodeExpires     DateTime? @map("email_code_expires")
+  storageQuota         BigInt    @default(5368709120) @map("storage_quota")
+  storageUsed          BigInt    @default(0) @map("storage_used")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
 
-  files          File[]
-  folders        Folder[]
-  sessions       Session[]
-  comments       Comment[]
-  activityLogs   ActivityLog[]
+  files               File[]
+  folders             Folder[]
+  sessions            Session[]
+  comments            Comment[]
+  activityLogs        ActivityLog[]
   encryptionKeys      EncryptionKey[]
-  permissionsGranted  Permission[]  @relation("GrantedBy")
-  permissionsReceived Permission[]  @relation("GrantedTo")
+  permissionsGranted  Permission[]      @relation("GrantedBy")
+  permissionsReceived Permission[]      @relation("GrantedTo")
   shareLinksCreated   ShareLink[]
   fileVersions        FileVersion[]
   recoveryCodes       RecoveryCode[]
   tags                Tag[]
   ytdlpCookies        YtdlpCookie[]
+  fileRequestLinks    FileRequestLink[]
 
   @@map("users")
 }
@@ -107,20 +108,20 @@ model File {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  folder        Folder?       @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder        Folder?        @relation(fields: [folderId], references: [id], onDelete: SetNull)
   encryptionKey EncryptionKey? @relation(fields: [encryptionKeyId], references: [id])
   versions      FileVersion[]
   comments      Comment[]
-  permissions   Permission[]  @relation("FilePermissions")
-  shareLinks    ShareLink[]   @relation("FileShareLinks")
+  permissions   Permission[]   @relation("FilePermissions")
+  shareLinks    ShareLink[]    @relation("FileShareLinks")
   fileTags      FileTag[]
 
+  @@unique([userId, folderId, name])
   @@index([userId])
   @@index([folderId])
   @@index([sha256Hash])
   @@index([isTrashed])
-  @@unique([userId, folderId, name])
   @@map("files")
 }
 
@@ -160,17 +161,18 @@ model Folder {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent      Folder?    @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
-  children    Folder[]   @relation("FolderHierarchy")
-  files       File[]
-  permissions Permission[] @relation("FolderPermissions")
-  shareLinks  ShareLink[]  @relation("FolderShareLinks")
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent           Folder?           @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children         Folder[]          @relation("FolderHierarchy")
+  files            File[]
+  permissions      Permission[]      @relation("FolderPermissions")
+  shareLinks       ShareLink[]       @relation("FolderShareLinks")
+  fileRequestLinks FileRequestLink[]
 
+  @@unique([userId, parentId, name])
   @@index([userId])
   @@index([parentId])
   @@index([path])
-  @@unique([userId, parentId, name])
   @@map("folders")
 }
 
@@ -213,14 +215,14 @@ model FileTag {
 // ============================================
 
 model Permission {
-  id           String    @id @default(uuid()) @db.Uuid
-  fileId       String?   @map("file_id") @db.Uuid
-  folderId     String?   @map("folder_id") @db.Uuid
-  grantedToId  String    @map("granted_to") @db.Uuid
-  grantedById  String    @map("granted_by") @db.Uuid
-  role         String    @db.VarChar(20) // viewer | editor | owner
-  expiresAt    DateTime? @map("expires_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
+  id          String    @id @default(uuid()) @db.Uuid
+  fileId      String?   @map("file_id") @db.Uuid
+  folderId    String?   @map("folder_id") @db.Uuid
+  grantedToId String    @map("granted_to") @db.Uuid
+  grantedById String    @map("granted_by") @db.Uuid
+  role        String    @db.VarChar(20) // viewer | editor | owner
+  expiresAt   DateTime? @map("expires_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
 
   file      File?   @relation("FilePermissions", fields: [fileId], references: [id], onDelete: Cascade)
   folder    Folder? @relation("FolderPermissions", fields: [folderId], references: [id], onDelete: Cascade)
@@ -356,7 +358,31 @@ model YtdlpCookie {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
   @@unique([userId, name])
+  @@index([userId])
   @@map("ytdlp_cookies")
+}
+
+// ============================================
+// File Requests (Link Drops)
+// ============================================
+
+model FileRequestLink {
+  id          String    @id @default(uuid()) @db.Uuid
+  folderId    String    @map("folder_id") @db.Uuid
+  token       String    @unique @db.VarChar(64)
+  title       String    @db.VarChar(255)
+  description String?   @db.Text
+  expiresAt   DateTime? @map("expires_at")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdById String    @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  folder    Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([folderId])
+  @@map("file_request_links")
 }
