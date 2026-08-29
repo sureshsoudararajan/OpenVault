@@ -368,7 +368,7 @@ const handleDeleteLink = async (linkId: string) => {
                                                     <div className="min-w-0 flex-1 flex items-center gap-2">
                                                         <Link2 className="h-4 w-4 text-brand-500" />
                                                         <span className="text-sm font-medium text-surface-900 dark:text-white capitalize">{link.permission} Access</span>
-                                                        {link.passwordHash && <Shield className="h-3.5 w-3.5 text-amber-500" title="Password Protected" />}
+                                                        {link.passwordHash && <span title="Password Protected"><Shield className="h-3.5 w-3.5 text-amber-500" /></span>}
                                                     </div>
                                                     <div className="flex items-center gap-1">
                                                         <button
