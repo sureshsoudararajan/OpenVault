@@ -40,7 +40,7 @@ export default function CookieManagerDialog({ isOpen, onClose, onCookieSelected 
         setLoading(true);
         setError(null);
         try {
-            const res = await ytdlpApi.getCookies();
+            const res: any = await ytdlpApi.getCookies();
             setCookies(res.data);
         } catch (err: any) {
             setError('Failed to load cookies');
@@ -75,7 +75,7 @@ export default function CookieManagerDialog({ isOpen, onClose, onCookieSelected 
         if (file) formData.append('file', file);
 
         try {
-            let res;
+            let res: any;
             if (editingId) {
                 res = await ytdlpApi.updateCookie(editingId, formData);
             } else {

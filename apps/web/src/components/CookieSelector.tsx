@@ -24,7 +24,7 @@ export default function CookieSelector({ url, selectedCookieId, onChange, onMana
     const loadCookies = async () => {
         setLoading(true);
         try {
-            const res = await ytdlpApi.getCookies();
+            const res: any = await ytdlpApi.getCookies();
             setCookies(res.data);
         } catch (e) {
             console.error(e);
