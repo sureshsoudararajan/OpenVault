@@ -344,17 +344,15 @@ const handleDeleteLink = async (linkId: string) => {
                                         ))}
                                     </div>
                                 </>
-                            ) : (
-                                {publicLinks.length === 0 && fileRequests.length === 0 && (
-                                    <div className="flex flex-col items-center justify-center py-8 text-center">
-                                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-100 dark:bg-surface-800 mb-3">
-                                            <Link2 className="h-6 w-6 text-surface-400 dark:text-surface-600" />
-                                        </div>
-                                        <p className="text-sm text-surface-500 dark:text-surface-400">Not shared yet</p>
-                                        <p className="text-xs text-surface-400 dark:text-surface-600 mt-1">Use the Share option to create a share link</p>
+                            ) : publicLinks.length === 0 && fileRequests.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-8 text-center">
+                                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-100 dark:bg-surface-800 mb-3">
+                                        <Link2 className="h-6 w-6 text-surface-400 dark:text-surface-600" />
                                     </div>
-                                )}
-                            )}
+                                    <p className="text-sm text-surface-500 dark:text-surface-400">Not shared yet</p>
+                                    <p className="text-xs text-surface-400 dark:text-surface-600 mt-1">Use the Share option to create a share link</p>
+                                </div>
+                            ) : null}
 
 
                             {publicLinks.length > 0 && (
