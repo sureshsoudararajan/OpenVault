@@ -16,7 +16,11 @@ interface ShareDialogProps {
 // Convert a datetime-local value (local time) to a proper ISO string with timezone offset
 function localToIso(localDatetime: string): string {
     if (!localDatetime) return '';
-    return new Date(localDatetime).toISOString();
+    // Safely parse local time across all browsers by extracting components
+    const [datePart, timePart] = localDatetime.split('T');
+    const [y, m, d] = datePart.split('-').map(Number);
+    const [h, min] = timePart.split(':').map(Number);
+    return new Date(y, m - 1, d, h, min).toISOString();
 }
 
 // ─── DateTimePicker ──────────────────────────────────────────────────────────
