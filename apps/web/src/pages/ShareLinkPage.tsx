@@ -3,8 +3,10 @@ import { useParams } from 'react-router-dom';
 import { sharingApi } from '../services/api';
 import {
     Shield, FileText, Lock, Download, Loader2, Eye,
-    Clock, AlertTriangle, FolderOpen, Key, Sun, Moon
+    Clock, AlertTriangle, FolderOpen, Key, Sun, Moon, LayoutGrid, List, Image, Film
 } from 'lucide-react';
+
+function isMedia(mime: string) { return mime.startsWith('image/') || mime.startsWith('video/'); }
 
 function useCountdown(target: string | null) {
     const [remaining, setRemaining] = useState('');
@@ -60,6 +62,7 @@ export default function ShareLinkPage() {
 
     // Text Edit
     const [textContent, setTextContent] = useState<string | null>(null);
+    const [view, setView] = useState<'list' | 'grid'>('list');
     const [isEditing, setIsEditing] = useState(false);
     const [savingEdit, setSavingEdit] = useState(false);
     const [editContent, setEditContent] = useState('');
@@ -343,7 +346,7 @@ export default function ShareLinkPage() {
                 {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </button>
 
-            <div className="relative w-full max-w-md animate-fade-in">
+            <div className="relative w-full max-w-2xl animate-fade-in">
                 {/* Branding */}
                 <div className="mb-6 text-center">
                     <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-purple-600 shadow-lg shadow-brand-500/20">
@@ -535,31 +538,79 @@ export default function ShareLinkPage() {
                             {/* Folder Share */}
                             {data.folder && (
                                 <div>
-                                    <div className="mb-4 flex items-center gap-3">
-                                        <FolderOpen className="h-8 w-8 text-brand-400" />
-                                        <div>
-                                            <h2 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-surface-900'}`}>{data.folder.name}</h2>
-                                            <p className={`text-xs ${theme === 'dark' ? 'text-surface-500' : 'text-surface-400'}`}>
-                                                {data.folder.files?.length || 0} files
-                                            </p>
+                                    <div className="mb-4 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <FolderOpen className="h-8 w-8 text-brand-400" />
+                                            <div>
+                                                <h2 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-surface-900'}`}>{data.folder.name}</h2>
+                                                <p className={`text-xs ${theme === 'dark' ? 'text-surface-500' : 'text-surface-400'}`}>
+                                                    {data.folder.files?.length || 0} files
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className={`flex items-center rounded-lg border p-0.5 ${theme === 'dark' ? 'border-surface-700 bg-surface-900' : 'border-surface-200 bg-surface-50'}`}>
+                                            <button onClick={() => setView('grid')} className={`rounded-md p-1.5 ${view === 'grid' ? 'bg-brand-500 text-white shadow-sm' : 'text-surface-500 hover:text-surface-900 dark:hover:text-white'}`}>
+                                                <LayoutGrid className="h-3.5 w-3.5" />
+                                            </button>
+                                            <button onClick={() => setView('list')} className={`rounded-md p-1.5 ${view === 'list' ? 'bg-brand-500 text-white shadow-sm' : 'text-surface-500 hover:text-surface-900 dark:hover:text-white'}`}>
+                                                <List className="h-3.5 w-3.5" />
+                                            </button>
                                         </div>
                                     </div>
 
-                                    <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                                        {data.folder.files?.map((f: any) => (
-                                            <div key={f.id} className={`flex items-center gap-3 rounded-lg px-3 py-2.5 ${theme === 'dark' ? 'bg-surface-800/50 hover:bg-surface-800' : 'bg-surface-50 hover:bg-surface-100'} transition-colors`}>
-                                                <FileText className={`h-4 w-4 flex-shrink-0 ${theme === 'dark' ? 'text-surface-500' : 'text-surface-400'}`} />
-                                                <span className={`flex-1 truncate text-sm ${theme === 'dark' ? 'text-white' : 'text-surface-900'}`}>{f.name}</span>
-                                                <span className="text-xs text-surface-500">{formatSize(f.size)}</span>
-                                                <button
-                                                    onClick={() => handleDownload(f.id)}
-                                                    className="rounded-md p-1.5 text-surface-500 hover:text-brand-500 hover:bg-brand-500/10 transition-colors"
-                                                    title="Download"
-                                                >
-                                                    <Download className="h-3.5 w-3.5" />
-                                                </button>
-                                            </div>
-                                        ))}
+                                    <div className={`max-h-96 overflow-y-auto pr-1 ${view === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-1.5'}`}>
+                                        {data.folder.files?.map((f: any) => {
+                                            const showThumb = isMedia(f.mimeType) && !!f.thumbnailKey;
+                                            const thumbUrl = `/api/sharing/public/${token}/thumbnail/${f.id}`;
+
+                                            if (view === 'grid') {
+                                                return (
+                                                    <div key={f.id} className={`group relative flex flex-col rounded-lg border overflow-hidden transition-all hover:shadow-md ${theme === 'dark' ? 'border-surface-700/60 bg-surface-800/50 hover:border-brand-500/30' : 'border-surface-200 bg-white hover:border-brand-300'}`}>
+                                                        <div className="aspect-square bg-surface-100 dark:bg-surface-900/50 flex items-center justify-center overflow-hidden">
+                                                            {showThumb ? (
+                                                                <img src={thumbUrl} alt={f.name} className="h-full w-full object-cover" />
+                                                            ) : (
+                                                                <FileText className={`h-8 w-8 ${theme === 'dark' ? 'text-surface-600' : 'text-surface-300'}`} />
+                                                            )}
+                                                        </div>
+                                                        <div className="p-2 flex flex-col gap-0.5">
+                                                            <p className={`truncate text-xs font-semibold leading-tight ${theme === 'dark' ? 'text-white' : 'text-surface-900'}`}>{f.name}</p>
+                                                            <p className="text-[10px] text-surface-400">{formatSize(f.size)}</p>
+                                                        </div>
+                                                        <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <button
+                                                                onClick={() => handleDownload(f.id)}
+                                                                className="flex h-6 w-6 items-center justify-center rounded-md bg-white/90 dark:bg-surface-800/90 shadow text-surface-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                                                                title="Download"
+                                                            >
+                                                                <Download className="h-3 w-3" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+
+                                            return (
+                                                <div key={f.id} className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 ${theme === 'dark' ? 'bg-surface-800/50 hover:bg-surface-800' : 'bg-surface-50 hover:bg-surface-100'} transition-colors`}>
+                                                    {showThumb ? (
+                                                        <img src={thumbUrl} alt={f.name} className="h-5 w-5 rounded object-cover flex-shrink-0" />
+                                                    ) : (
+                                                        <FileText className={`h-4 w-4 flex-shrink-0 ${theme === 'dark' ? 'text-surface-500' : 'text-surface-400'}`} />
+                                                    )}
+                                                    <div className="flex-1 min-w-0 flex flex-col">
+                                                        <span className={`truncate text-sm ${theme === 'dark' ? 'text-white' : 'text-surface-900'}`}>{f.name}</span>
+                                                    </div>
+                                                    <span className="text-xs text-surface-500 hidden sm:inline-block">{formatSize(f.size)}</span>
+                                                    <button
+                                                        onClick={() => handleDownload(f.id)}
+                                                        className="rounded-md p-1.5 text-surface-500 hover:text-brand-500 hover:bg-brand-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                                                        title="Download"
+                                                    >
+                                                        <Download className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}

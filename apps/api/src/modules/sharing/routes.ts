@@ -60,6 +60,36 @@ function validateLinkAccess(link: any): { valid: boolean; code: string; message:
 }
 
 export async function sharingRoutes(app: FastifyInstance) {
+    // GET /api/sharing/public/:token/thumbnail/:fileId — Get thumbnail for a file in a public share link
+    app.get('/public/:token/thumbnail/:fileId', async (request, reply) => {
+        const { token, fileId } = request.params as { token: string; fileId: string };
+
+        const shareLink = await prisma.shareLink.findUnique({
+            where: { token },
+        });
+
+        if (!shareLink || !shareLink.isActive) {
+            return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Share link not found or inactive' } });
+        }
+
+        // Validate if file belongs to the shared folder or is the shared file itself
+        let file = null;
+        if (shareLink.fileId === fileId) {
+            file = await prisma.file.findUnique({ where: { id: fileId }, select: { thumbnailKey: true, isTrashed: true } });
+        } else if (shareLink.folderId) {
+            file = await prisma.file.findFirst({ where: { id: fileId, folderId: shareLink.folderId, isTrashed: false }, select: { thumbnailKey: true, isTrashed: true } });
+        }
+
+        if (!file || file.isTrashed || !file.thumbnailKey) {
+            return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Thumbnail not found' } });
+        }
+
+        const rawThumbnailUrl = await getPresignedDownloadUrl(config.minio.bucket, file.thumbnailKey, 300);
+        const downloadUrl = rewriteMinioUrl(rawThumbnailUrl);
+
+        return reply.redirect(302, downloadUrl);
+    });
+
     // POST /api/sharing/link — Create a share link
     app.post('/link', { preHandler: [authGuard] }, async (request, reply) => {
         const body = createShareLinkSchema.parse(request.body);
