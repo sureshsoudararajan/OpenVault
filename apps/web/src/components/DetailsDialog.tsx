@@ -1,3 +1,4 @@
+import { useAuthStore } from '../stores/authStore';
 import { useState, useEffect } from 'react';
 import { fileApi, folderApi, sharingApi } from '../services/api';
 import {
@@ -69,6 +70,8 @@ const getExtension = (name: string) => {
 export default function DetailsDialog({ id, type, name, onClose }: DetailsDialogProps) {
     const [details, setDetails] = useState<any>(null);
     const [permissions, setPermissions] = useState<any[]>([]);
+    const [fileRequests, setFileRequests] = useState<any[]>([]);
+    const [deletingRequest, setDeletingRequest] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<Tab>('info');
     const [copiedField, setCopiedField] = useState('');
@@ -86,6 +89,16 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
                     const permRes: any = await sharingApi.listPermissions(id);
                     setPermissions(permRes.data || []);
                 } catch { /* ignore */ }
+                
+                if (type === 'folder') {
+                    try {
+                        const token = useAuthStore.getState().accessToken;
+                        const reqRes = await fetch(`/api/file-requests/folder/${id}`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        }).then(r => r.json());
+                        if (reqRes.success) setFileRequests(reqRes.links || []);
+                    } catch { /* ignore */ }
+                }
             } catch (err) {
                 console.error('Failed to load details:', err);
             } finally {
@@ -102,9 +115,48 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
     }, [onClose]);
 
     const copyToClipboard = (text: string, field: string) => {
-        navigator.clipboard.writeText(text);
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text);
+        } else {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            textArea.style.top = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+            } catch (err) {
+                console.error('Fallback copy failed', err);
+            }
+            textArea.remove();
+        }
         setCopiedField(field);
         setTimeout(() => setCopiedField(''), 2000);
+    };
+
+    const handleDeleteRequest = async (requestId: string) => {
+        if (!confirm('Are you sure you want to delete this file request link?')) return;
+        setDeletingRequest(requestId);
+        try {
+            const token = useAuthStore.getState().accessToken;
+            const res = await fetch(`/api/file-requests/${requestId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).then(r => r.json());
+            if (res.success) {
+                setFileRequests(prev => prev.filter(r => r.id !== requestId));
+            } else {
+                alert('Failed to delete link');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error deleting link');
+        } finally {
+            setDeletingRequest(null);
+        }
     };
 
     const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -281,11 +333,53 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
                                         <Link2 className="h-6 w-6 text-surface-400 dark:text-surface-600" />
                                     </div>
                                     <p className="text-sm text-surface-500 dark:text-surface-400">Not shared yet</p>
+
                                     <p className="text-xs text-surface-400 dark:text-surface-600 mt-1">Use the Share option to create a share link</p>
+                                </div>
+                            )}
+
+                            {type === 'folder' && fileRequests.length > 0 && (
+                                <div className="mt-6">
+                                    <h4 className="text-[10px] uppercase tracking-widest text-surface-500 font-semibold mb-2">File Request Links</h4>
+                                    <div className="space-y-2">
+                                        {fileRequests.map(req => {
+                                            const linkUrl = `${window.location.origin}/request/${req.token}`;
+                                            return (
+                                            <div key={req.id} className="flex flex-col gap-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/30 px-3 py-2.5">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-sm font-medium text-surface-900 dark:text-white truncate">{req.title}</p>
+                                                        {req.description && <p className="text-xs text-surface-500 truncate">{req.description}</p>}
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={() => copyToClipboard(linkUrl, req.id)}
+                                                            className="p-1.5 text-surface-400 hover:text-surface-900 dark:hover:text-white rounded-md hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+                                                            title="Copy Link"
+                                                        >
+                                                            {copiedField === req.id ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteRequest(req.id)}
+                                                            disabled={deletingRequest === req.id}
+                                                            className="p-1.5 text-red-400 hover:text-red-600 dark:hover:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                                                            title="Delete Request"
+                                                        >
+                                                            {deletingRequest === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div className="text-[10px] text-surface-400">
+                                                    {req.expiresAt ? `Expires: ${formatDate(req.expiresAt)}` : 'Never expires'}
+                                                </div>
+                                            </div>
+                                        )})}
+                                    </div>
                                 </div>
                             )}
                         </div>
                     ) : null}
+
                 </div>
             </div>
         </div>

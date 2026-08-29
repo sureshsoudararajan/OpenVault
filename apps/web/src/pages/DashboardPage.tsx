@@ -464,15 +464,15 @@ function DashboardPage() {
                             >
                                 {viewMode === 'grid' ? <List className="h-4 w-4 lg:h-5 lg:w-5" /> : <Grid3X3 className="h-4 w-4 lg:h-5 lg:w-5" />}
                             </button>
-                            <button onClick={() => setShowNewFolderInput(true)} className="btn-secondary hidden sm:flex items-center gap-2 text-xs lg:text-sm px-3 lg:px-4 py-1.5 lg:py-2">
-                                <FolderPlus className="h-3.5 w-3.5 lg:h-4 lg:w-4" /> New Folder
+                            <button onClick={() => setShowNewFolderInput(true)} className="btn-secondary flex items-center gap-2 text-xs lg:text-sm px-2 sm:px-3 lg:px-4 py-1.5 lg:py-2" title="New Folder">
+                                <FolderPlus className="h-4 w-4 lg:h-4 lg:w-4" /> <span className="hidden sm:inline">New Folder</span>
                             </button>
-                            <button onClick={() => setShowFetchVideo(true)} className="btn-secondary hidden sm:flex items-center gap-2 text-xs lg:text-sm px-3 lg:px-4 py-1.5 lg:py-2 bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20 dark:hover:bg-indigo-500/20 mr-1">
-                                <Youtube className="h-4 w-4 lg:h-5 lg:w-5" /> Fetch Video
+                            <button onClick={() => setShowFetchVideo(true)} className="btn-secondary flex items-center gap-2 text-xs lg:text-sm px-2 sm:px-3 lg:px-4 py-1.5 lg:py-2 bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20 dark:hover:bg-indigo-500/20 mr-1" title="Fetch Video">
+                                <Youtube className="h-4 w-4 lg:h-5 lg:w-5" /> <span className="hidden sm:inline">Fetch Video</span>
                             </button>
                             <div className="flex gap-1 group">
                                 <button onClick={() => fileInputRef.current?.click()} className="btn-primary flex items-center gap-2 text-xs lg:text-sm px-2.5 lg:px-4 py-1.5 lg:py-2 !rounded-r-none border-r border-white/20">
-                                    <Upload className="h-3.5 w-3.5 lg:h-4 lg:w-4" /> <span>Upload</span>
+                                    <Upload className="h-4 w-4 lg:h-4 lg:w-4" /> <span className="hidden sm:inline">Upload</span>
                                 </button>
                                 <button onClick={() => folderInputRef.current?.click()} className="btn-primary flex items-center justify-center px-2 lg:px-3 !rounded-l-none" title="Upload Folder">
                                     <FolderOpen className="h-3.5 w-3.5 lg:h-4 lg:w-4" />

@@ -41,6 +41,32 @@ export async function fileRequestRoutes(app: FastifyInstance) {
         return reply.status(201).send({ success: true, requestLink });
     });
 
+
+    // List file requests for a folder
+    app.get('/folder/:folderId', { preHandler: [authGuard] }, async (request, reply) => {
+        const { folderId } = z.object({ folderId: z.string().uuid() }).parse(request.params);
+        const folder = await prisma.folder.findUnique({ where: { id: folderId } });
+        if (!folder || folder.userId !== request.userId) {
+            return reply.status(403).send({ success: false, error: { code: 'FORBIDDEN', message: 'Unauthorized' } });
+        }
+        const links = await prisma.fileRequestLink.findMany({
+            where: { folderId, isActive: true },
+            orderBy: { createdAt: 'desc' }
+        });
+        return reply.status(200).send({ success: true, links });
+    });
+
+    // Delete a file request link
+    app.delete('/:id', { preHandler: [authGuard] }, async (request, reply) => {
+        const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+        const link = await prisma.fileRequestLink.findUnique({ where: { id } });
+        if (!link || link.createdById !== request.userId) {
+            return reply.status(403).send({ success: false, error: { code: 'FORBIDDEN', message: 'Unauthorized' } });
+        }
+        await prisma.fileRequestLink.delete({ where: { id } });
+        return reply.status(200).send({ success: true });
+    });
+
     // Get info about the file request (Public)
     app.get('/:token', async (request, reply) => {
         const { token } = z.object({ token: z.string() }).parse(request.params);
