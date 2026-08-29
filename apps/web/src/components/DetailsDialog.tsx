@@ -203,9 +203,9 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
                                 </>
                             ) : (
                                 <>
+                                    <StatBox label="Size" value={formatSize(Number(details.size) || 0)} />
                                     <StatBox label="Files" value={String(details._count?.files ?? 0)} />
-                                    <StatBox label="Subfolders" value={String(details._count?.children ?? 0)} />
-                                    <StatBox label="Created" value={getRelativeTime(details.createdAt)} />
+                                    <StatBox label="Folders" value={String(details._count?.children ?? 0)} />
                                 </>
                             )}
                         </div>

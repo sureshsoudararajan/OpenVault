@@ -16,9 +16,12 @@ const createFolderSchema = z.object({
 /**
  * Recursively collect all descendant folder IDs for a given folder.
  */
-async function getDescendantFolderIds(folderId: string, userId: string): Promise<string[]> {
+async function getDescendantFolderIds(folderId: string, userId?: string): Promise<string[]> {
+    const whereClause: any = { parentId: folderId };
+    if (userId) whereClause.userId = userId;
+
     const children = await prisma.folder.findMany({
-        where: { parentId: folderId, userId },
+        where: whereClause,
         select: { id: true },
     });
 
@@ -70,22 +73,40 @@ async function permanentlyDeleteFiles(fileIds: string[]) {
 
 export async function folderRoutes(app: FastifyInstance) {
     // POST /api/folders — Create a new folder
-    app.post('/', { preHandler: [authGuard] }, async (request, reply) => {
+        app.post('/', { preHandler: [authGuard] }, async (request, reply) => {
         const { name, parentId, color } = createFolderSchema.parse(request.body);
 
-        // Build materialized path
         let path = '';
+        let targetUserId = request.userId;
+
         if (parentId) {
-            const parent = await prisma.folder.findFirst({ where: { id: parentId, userId: request.userId } });
+            const parent = await prisma.folder.findUnique({ where: { id: parentId } });
             if (!parent) {
                 return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Parent folder not found' } });
             }
+            
+            // Verify access
+            let hasAccess = parent.userId === request.userId;
+            if (!hasAccess) {
+                const pathIds = (parent.path || '').split('/').filter(id => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
+                pathIds.push(parentId);
+                const perm = await prisma.permission.findFirst({
+                    where: { grantedToId: request.userId, folderId: { in: pathIds }, role: { in: ['owner', 'editor'] } }
+                });
+                if (perm) hasAccess = true;
+            }
+            
+            if (!hasAccess) {
+                return reply.status(403).send({ success: false, error: { code: 'FORBIDDEN', message: 'No permission to create folder here' } });
+            }
+
             path = parent.path ? `${parent.path}/${parent.id}` : `/${parent.id}`;
+            targetUserId = parent.userId; // Subfolder belongs to the root owner
         }
 
         const folder = await prisma.folder.create({
             data: {
-                userId: request.userId,
+                userId: targetUserId,
                 parentId: parentId || null,
                 name,
                 path,
@@ -99,7 +120,7 @@ export async function folderRoutes(app: FastifyInstance) {
                 action: 'upload',
                 resourceId: folder.id,
                 resourceType: 'folder',
-                metadata: { folderName: name },
+                metadata: { folderName: name, targetUserId },
                 ipAddress: request.ip,
             },
         });
@@ -237,6 +258,7 @@ export async function folderRoutes(app: FastifyInstance) {
             return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Folder not found' } });
         }
 
+
         // Build ancestor breadcrumb chain
         const ancestors: { id: string; name: string }[] = [];
         let currentParentId = folder.parentId;
@@ -250,14 +272,25 @@ export async function folderRoutes(app: FastifyInstance) {
             currentParentId = parent.parentId;
         }
 
+        // Calculate total size of this folder (including all descendants)
+        const descendantIds = await getDescendantFolderIds(id);
+        const allFolderIds = [id, ...descendantIds];
+        const sizeAggregate = await prisma.file.aggregate({
+            where: { folderId: { in: allFolderIds }, isTrashed: false },
+            _sum: { size: true }
+        });
+        const totalSize = sizeAggregate._sum.size ? Number(sizeAggregate._sum.size) : 0;
+
         return {
             success: true,
             data: {
                 ...folder,
+                size: totalSize,
                 files: folder.files.map((f: any) => ({ ...f, size: Number(f.size) })),
                 ancestors,
             },
         };
+
     });
 
 

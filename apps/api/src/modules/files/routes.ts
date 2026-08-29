@@ -28,12 +28,18 @@ const uploadCompleteSchema = z.object({
 
 export async function fileRoutes(app: FastifyInstance) {
     // POST /api/files/upload/init — Request a presigned MinIO URL for direct browser upload
-    app.post('/upload/init', { preHandler: [authGuard] }, async (request, reply) => {
+        app.post('/upload/init', { preHandler: [authGuard] }, async (request, reply) => {
         const body = uploadInitSchema.parse(request.body);
 
-        // Check storage quota
+        let targetUserId = request.userId;
+        if (body.folderId) {
+            const folder = await prisma.folder.findUnique({ where: { id: body.folderId }, select: { userId: true } });
+            if (folder) targetUserId = folder.userId;
+        }
+
+        // Check storage quota against the target user (folder owner or uploader)
         const user = await prisma.user.findUnique({
-            where: { id: request.userId },
+            where: { id: targetUserId },
             select: { storageUsed: true, storageQuota: true },
         });
         if (!user) return reply.status(401).send({ success: false, error: { code: 'UNAUTHORIZED', message: 'User not found' } });
@@ -41,12 +47,12 @@ export async function fileRoutes(app: FastifyInstance) {
         if (user.storageUsed + BigInt(body.size) > user.storageQuota) {
             return reply.status(413).send({
                 success: false,
-                error: { code: 'QUOTA_EXCEEDED', message: 'Storage quota exceeded' },
+                error: { code: 'QUOTA_EXCEEDED', message: 'Storage quota exceeded for the target folder owner' },
             });
         }
 
-        // Build a temporary storage key using timestamp to avoid collisions (will be finalised on complete)
-        const tempKey = buildStorageKey(request.userId, body.folderId || null, `${Date.now()}-${body.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
+        // Build a temporary storage key using timestamp to avoid collisions
+        const tempKey = buildStorageKey(targetUserId, body.folderId || null, `${Date.now()}-${body.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
         const rawUploadUrl = await getPresignedUploadUrl(config.minio.bucket, tempKey, 7200); // 2 hours
         const uploadUrl = rewriteMinioUrl(rawUploadUrl);
 
@@ -56,88 +62,8 @@ export async function fileRoutes(app: FastifyInstance) {
         };
     });
 
-    // POST /api/files/upload/complete — Finalize upload: create DB record after browser PUT to MinIO
-    app.post('/upload/complete', { preHandler: [authGuard] }, async (request, reply) => {
-        const body = uploadCompleteSchema.parse(request.body);
-
-        // Verify the object actually exists in MinIO
-        const exists = await objectExists(config.minio.bucket, body.storageKey);
-        if (!exists) {
-            return reply.status(400).send({
-                success: false,
-                error: { code: 'UPLOAD_NOT_FOUND', message: 'Upload not found in storage. Please try again.' },
-            });
-        }
-
-        let hash = body.sha256Hash || body.storageKey.split('/').pop() || 'unknown';
-        if (hash.length > 64) {
-            hash = hash.slice(0, 64);
-        }
-
-        const file = await prisma.file.create({
-            data: {
-                userId: request.userId,
-                folderId: body.folderId || null,
-                name: body.name,
-                mimeType: body.mimeType,
-                size: BigInt(body.size),
-                sha256Hash: hash,
-                storageKey: body.storageKey,
-            },
-        });
-
-        await prisma.fileVersion.create({
-            data: {
-                fileId: file.id,
-                versionNumber: 1,
-                size: BigInt(body.size),
-                sha256Hash: hash,
-                storageKey: body.storageKey,
-                createdBy: request.userId,
-            },
-        });
-
-        await prisma.user.update({
-            where: { id: request.userId },
-            data: { storageUsed: { increment: BigInt(body.size) } },
-        });
-
-        await prisma.activityLog.create({
-            data: {
-                userId: request.userId,
-                action: 'upload',
-                resourceId: file.id,
-                resourceType: 'file',
-                metadata: { fileName: body.name, size: body.size },
-                ipAddress: request.ip,
-            },
-        });
-
-        await enqueueThumbnail(file.id, body.mimeType, body.storageKey);
-        await enqueueDedupScan(file.id, hash, request.userId);
-
-        // Trigger initial search indexing
-        try {
-            await fetch(`${config.apiUrl}/api/search/index`, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer INTERNAL_${config.jwt.accessSecret}` 
-                },
-                body: JSON.stringify({ fileId: file.id })
-            });
-        } catch (e: any) {
-            app.log.warn({ err: e }, `⚠️ Failed to trigger initial search indexing for ${file.id}`);
-        }
-
-        return reply.status(201).send({
-            success: true,
-            data: { ...file, size: Number(file.size) },
-        });
-    });
-
     // POST /api/files/upload — Legacy multipart upload (now unlimited, kept for compatibility)
-    app.post('/upload', { preHandler: [authGuard] }, async (request, reply) => {
+        app.post('/upload', { preHandler: [authGuard] }, async (request, reply) => {
         const data = await request.file();
         if (!data) {
             return reply.status(400).send({ success: false, error: { code: 'NO_FILE', message: 'No file provided' } });
@@ -150,8 +76,15 @@ export async function fileRoutes(app: FastifyInstance) {
         const fileBuffer = Buffer.concat(chunks);
 
         const folderId = (data.fields.folderId as any)?.value || null;
+        
+        let targetUserId = request.userId;
+        if (folderId) {
+            const folder = await prisma.folder.findUnique({ where: { id: folderId }, select: { userId: true } });
+            if (folder) targetUserId = folder.userId;
+        }
+
         const hash = sha256(fileBuffer);
-        const storageKey = buildStorageKey(request.userId, folderId, hash);
+        const storageKey = buildStorageKey(targetUserId, folderId, hash);
 
         await uploadObject(config.minio.bucket, storageKey, fileBuffer, {
             'Content-Type': data.mimetype,
@@ -159,8 +92,8 @@ export async function fileRoutes(app: FastifyInstance) {
 
         const file = await prisma.file.create({
             data: {
-                userId: request.userId,
-                folderId: folderId || null,
+                userId: targetUserId,
+                folderId,
                 name: data.filename,
                 mimeType: data.mimetype,
                 size: BigInt(fileBuffer.length),
@@ -181,7 +114,7 @@ export async function fileRoutes(app: FastifyInstance) {
         });
 
         await prisma.user.update({
-            where: { id: request.userId },
+            where: { id: targetUserId },
             data: { storageUsed: { increment: BigInt(fileBuffer.length) } },
         });
 
@@ -191,7 +124,7 @@ export async function fileRoutes(app: FastifyInstance) {
                 action: 'upload',
                 resourceId: file.id,
                 resourceType: 'file',
-                metadata: { fileName: data.filename, size: fileBuffer.length },
+                metadata: { fileName: data.filename, size: fileBuffer.length, legacy: true },
                 ipAddress: request.ip,
             },
         });
