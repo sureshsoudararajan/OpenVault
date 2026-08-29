@@ -435,6 +435,22 @@ docker compose down -v
 | `minio-data` | All uploaded file blobs & thumbnails |
 | `meili-data` | MeiliSearch index data |
 
+#### Updating `yt-dlp`
+
+Because YouTube and other sites frequently update their anti-bot measures, you may occasionally need to update the `yt-dlp` binary to keep media fetching working. 
+
+First, update the wrapper package in the API workspace to ensure you have the latest script:
+```bash
+npm install youtube-dl-exec@latest --workspace=apps/api
+```
+
+Then, force Docker to rebuild the API container without cache. This ensures the installer reaches out to GitHub to download the absolute newest `yt-dlp` executable:
+
+```bash
+docker compose build --no-cache api
+docker compose up -d
+```
+
 ---
 
 ## 📡 API Reference
