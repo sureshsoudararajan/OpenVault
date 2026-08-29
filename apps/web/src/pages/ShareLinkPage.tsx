@@ -565,7 +565,7 @@ export default function ShareLinkPage() {
 
                                             if (view === 'grid') {
                                                 return (
-                                                    <div key={f.id} className={`group relative flex flex-col rounded-lg border overflow-hidden transition-all hover:shadow-md ${theme === 'dark' ? 'border-surface-700/60 bg-surface-800/50 hover:border-brand-500/30' : 'border-surface-200 bg-white hover:border-brand-300'}`}>
+                                                    <div key={f.id} onClick={() => handlePreview(f.id)} className={`cursor-pointer group relative flex flex-col rounded-lg border overflow-hidden transition-all hover:shadow-md ${theme === 'dark' ? 'border-surface-700/60 bg-surface-800/50 hover:border-brand-500/30' : 'border-surface-200 bg-white hover:border-brand-300'}`}>
                                                         <div className="aspect-square bg-surface-100 dark:bg-surface-900/50 flex items-center justify-center overflow-hidden">
                                                             {showThumb ? (
                                                                 <img src={thumbUrl} alt={f.name} className="h-full w-full object-cover" />
@@ -591,7 +591,7 @@ export default function ShareLinkPage() {
                                             }
 
                                             return (
-                                                <div key={f.id} className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 ${theme === 'dark' ? 'bg-surface-800/50 hover:bg-surface-800' : 'bg-surface-50 hover:bg-surface-100'} transition-colors`}>
+                                                <div key={f.id} onClick={() => handlePreview(f.id)} className={`cursor-pointer group flex items-center gap-3 rounded-lg px-3 py-2.5 ${theme === 'dark' ? 'bg-surface-800/50 hover:bg-surface-800' : 'bg-surface-50 hover:bg-surface-100'} transition-colors`}>
                                                     {showThumb ? (
                                                         <img src={thumbUrl} alt={f.name} className="h-5 w-5 rounded object-cover flex-shrink-0" />
                                                     ) : (

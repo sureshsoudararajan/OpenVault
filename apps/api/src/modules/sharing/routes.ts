@@ -171,12 +171,12 @@ export async function sharingRoutes(app: FastifyInstance) {
         const link = await prisma.shareLink.findUnique({
             where: { token },
             include: {
-                file: { select: { id: true, name: true, mimeType: true, size: true } },
+                file: { select: { id: true, name: true, mimeType: true, size: true, thumbnailKey: true } },
                 folder: {
                     include: {
                         files: {
                             where: { isTrashed: false },
-                            select: { id: true, name: true, mimeType: true, size: true },
+                            select: { id: true, name: true, mimeType: true, size: true, thumbnailKey: true },
                         },
                     },
                 },
