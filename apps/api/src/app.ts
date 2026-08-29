@@ -130,6 +130,7 @@ export async function buildApp() {
             await api.register(tagRoutes, { prefix: '/tags' });
             await api.register(ytdlpRoutes, { prefix: '/ytdlp' });
             await api.register(ytdlpCookieRoutes, { prefix: '/ytdlp' });
+            await api.register(fileRequestRoutes, { prefix: '/file-requests' });
         },
         { prefix: '/api' }
     );
