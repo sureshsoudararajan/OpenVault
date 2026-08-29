@@ -15,6 +15,7 @@ COPY packages/config/package.json ./packages/config/
 COPY packages/crypto/package.json ./packages/crypto/
 COPY packages/shared-types/package.json ./packages/shared-types/
 COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
 
 # Install dependencies (Cached unless package.jsons change)
 # Increase NPM timeout and retries for more resilient builds
