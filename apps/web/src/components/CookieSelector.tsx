@@ -14,9 +14,10 @@ interface CookieSelectorProps {
     onChange: (id: string | null) => void;
     onManageCookies: () => void;
     onUploadNew: () => void;
+    refreshTrigger?: number;
 }
 
-export default function CookieSelector({ url, selectedCookieId, onChange, onManageCookies, onUploadNew }: CookieSelectorProps) {
+export default function CookieSelector({ url, selectedCookieId, onChange, onManageCookies, onUploadNew, refreshTrigger = 0 }: CookieSelectorProps) {
     const [cookies, setCookies] = useState<CookieProfile[]>([]);
     const [loading, setLoading] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
@@ -36,7 +37,7 @@ export default function CookieSelector({ url, selectedCookieId, onChange, onMana
     // Load cookies when dropdown opens or component mounts
     useEffect(() => {
         loadCookies();
-    }, []);
+    }, [refreshTrigger]);
 
     // Provide a way for parent to force refresh (e.g. via a ref or just reloading on mount is enough)
 

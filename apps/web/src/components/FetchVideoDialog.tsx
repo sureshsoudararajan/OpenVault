@@ -42,6 +42,7 @@ export default function FetchVideoDialog({ isOpen, onClose, currentFolderId, onC
 
     const [selectedCookieId, setSelectedCookieId] = useState<string | null>(null);
     const [showCookieManager, setShowCookieManager] = useState(false);
+    const [cookieRefreshTrigger, setCookieRefreshTrigger] = useState(0);
 
     const [selectedVideoFormat, setSelectedVideoFormat] = useState<string | null>(null);
     const [selectedAudioFormat, setSelectedAudioFormat] = useState<string | null>(null);
@@ -242,6 +243,7 @@ export default function FetchVideoDialog({ isOpen, onClose, currentFolderId, onC
                                 onChange={setSelectedCookieId} 
                                 onManageCookies={() => setShowCookieManager(true)}
                                 onUploadNew={() => setShowCookieManager(true)}
+                                refreshTrigger={cookieRefreshTrigger}
                             />
                         </div>
                     </div>
@@ -412,7 +414,10 @@ export default function FetchVideoDialog({ isOpen, onClose, currentFolderId, onC
 
             <CookieManagerDialog 
                 isOpen={showCookieManager} 
-                onClose={() => setShowCookieManager(false)} 
+                onClose={() => {
+                     setShowCookieManager(false);
+                     setCookieRefreshTrigger(prev => prev + 1);
+                }} 
                 onCookieSelected={setSelectedCookieId}
             />
         </div>
