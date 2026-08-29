@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen?style=flat-square&logo=node.js" alt="Node" />
+  <img src="https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen?style=flat-square&logo=node.js" alt="Node" />
   <img src="https://img.shields.io/badge/TypeScript-5.4-blue?style=flat-square&logo=typescript" alt="TypeScript" />
   <img src="https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Fastify-5-000?style=flat-square&logo=fastify" alt="Fastify" />
@@ -50,7 +50,8 @@
 - **Drag & Move** — Move files between folders
 - **Tags** — Create color-coded tags to label and organize files
 - **File Metadata** — Background extraction of image EXIF metadata (dimensions, format, channels, density) stored as JSONB
-- **Media Fetching** — Download videos/audio from YouTube, Twitter, TikTok, etc. directly to your vault via `yt-dlp` integration.
+- **Media Fetching** — Download videos/audio from YouTube, Twitter, TikTok, etc. directly to your vault via `yt-dlp` integration
+- **Cookie Management** — Upload, select, edit, and delete persistent `cookies.txt` profiles for authenticated `yt-dlp` downloads (e.g., age-restricted or private YouTube videos)
 
 ### 🔗 Sharing & Collaboration
 - **Public Share Links** — Generate token-based shareable URLs for any file or folder
@@ -107,7 +108,7 @@
 | **File Uploads** | Uppy 3 (XHR + TUS) | Chunked, resumable uploads with UI |
 | **File Parsing** | Mammoth (DOCX), SheetJS XLSX, marked (MD) | In-browser document preview |
 | **Icons** | Lucide React | Consistent icon library |
-| **Backend** | Node.js 20, Fastify 5, TypeScript | High-performance API server |
+| **Backend** | Node.js 22, Fastify 5, TypeScript | High-performance API server |
 | **Validation** | Zod | Runtime schema validation |
 | **Database** | PostgreSQL 16 | Relational metadata & auth store |
 | **ORM** | Prisma 6 | Type-safe database access & migrations |
@@ -117,7 +118,7 @@
 | **Auth** | JWT (jsonwebtoken), Argon2, otplib | Auth, hashing, TOTP |
 | **Email** | Nodemailer | Transactional email via SMTP |
 | **Encryption** | AES-256-GCM (`@openvault/crypto`) | Client & server-side encryption |
-| **Media** | Sharp (image resize/WebP), fluent-ffmpeg, youtube-dl-exec | Thumbnail, frame & media extraction |
+| **Media** | Sharp (image resize/WebP), fluent-ffmpeg, youtube-dl-exec, yt-dlp-ejs | Thumbnail, frame & media extraction with YouTube JS challenge solving |
 | **Real-time** | `@fastify/websocket` | Live presence & notifications |
 | **DevOps** | Docker, Docker Compose | Containerized deployment |
 | **CI/CD** | GitHub Actions | Lint, test, Docker build on push |
@@ -154,7 +155,9 @@ OpenVault/                          # npm workspaces monorepo root
 │   │           ├── search/         #     MeiliSearch + PostgreSQL fallback
 │   │           ├── dedup/          #     Duplicate detection API
 │   │           ├── tags/           #     Tag CRUD & file tagging
-│   │           └── ytdlp/          #     Media fetching via yt-dlp
+│   │           ├── ytdlp/          #     Media fetching via yt-dlp
+│           │   ├── routes.ts   #       Fetch info & download with JS challenge solving
+│           │   └── cookie.routes.ts #  Cookie profile CRUD (upload, list, update, delete)
 │   │
 │   └── web/                        # React frontend (@openvault/web)
 │       └── src/
@@ -179,6 +182,8 @@ OpenVault/                          # npm workspaces monorepo root
 │           │   ├── DetailsDialog.tsx    # File/folder metadata panel
 │           │   ├── TagDialog.tsx        # Tag management UI
 │           │   ├── FetchVideoDialog.tsx # Media fetching dialog
+│           │   ├── CookieSelector.tsx   # Cookie profile dropdown with domain suggestions
+│           │   ├── CookieManagerDialog.tsx # Full CRUD cookie management modal
 │           │   ├── Thumbnail.tsx        # Lazy-loaded file thumbnail
 │           │   └── UploadProgressPanel.tsx # Multi-file upload progress overlay
 │           ├── stores/
@@ -219,8 +224,8 @@ OpenVault/                          # npm workspaces monorepo root
 
 | Tool | Version | Install |
 |---|---|---|
-| **Node.js** | >= 20 | [nodejs.org](https://nodejs.org) |
-| **npm** | >= 10 | Included with Node.js 20 |
+| **Node.js** | >= 22 | [nodejs.org](https://nodejs.org) |
+| **npm** | >= 10 | Included with Node.js 22 |
 | **Docker** | Latest | [docs.docker.com/get-docker](https://docs.docker.com/get-docker/) |
 | **Docker Compose** | v2+ | Included with Docker Desktop |
 
@@ -439,6 +444,8 @@ docker compose down -v
 
 Because YouTube and other sites frequently update their anti-bot measures, you may occasionally need to update the `yt-dlp` binary to keep media fetching working. 
 
+> **⚠️ IMPORTANT:** `yt-dlp` version `2026.08.19` and later require **Node.js >= 22.0.0** for the JavaScript challenge solver. The Docker API container already uses Node 22. If you change the base image, ensure it meets this requirement or YouTube downloads will fail with `"The page needs to be reloaded"`.
+
 First, update the wrapper package in the API workspace to ensure you have the latest script:
 ```bash
 npm install youtube-dl-exec@latest --workspace=apps/api
@@ -450,6 +457,8 @@ Then, force Docker to rebuild the API container without cache. This ensures the 
 docker compose build --no-cache api
 docker compose up -d
 ```
+
+> **Note:** The container also installs `yt-dlp-ejs` (a Python package providing YouTube JS challenge solver scripts). This is installed automatically during the Docker build via `pip3 install --break-system-packages yt-dlp-ejs` in `Dockerfile.api`.
 
 ---
 
@@ -567,12 +576,107 @@ All endpoints are prefixed with `/api`. Protected routes (`✅`) require a valid
 |---|---|---|---|
 | `POST` | `/ytdlp/fetch-info` | Fetch video metadata and available formats from a URL | ✅ |
 | `POST` | `/ytdlp/download` | Download a specific format directly to the vault (NDJSON stream) | ✅ |
+| `GET` | `/ytdlp/cookies` | List all saved cookie profiles for the current user | ✅ |
+| `POST` | `/ytdlp/cookies` | Upload a new `cookies.txt` file with a label and optional domain | ✅ |
+| `PUT` | `/ytdlp/cookies/:id` | Update an existing cookie profile (replace file, rename, change domain) | ✅ |
+| `DELETE` | `/ytdlp/cookies/:id` | Delete a cookie profile and remove the file from storage | ✅ |
+
+---
+
+## 🔧 yt-dlp Troubleshooting
+
+YouTube aggressively blocks automated downloaders. OpenVault includes several hardened workarounds, but you may still encounter issues. This section documents the challenges we solved and how to fix them if they resurface.
+
+### How yt-dlp Works in OpenVault
+
+The API container runs `yt-dlp` (bundled via `youtube-dl-exec`) with the following flags automatically applied:
+
+| Flag | Purpose |
+|---|---|
+| `--force-ipv4` | Forces IPv4 connections — YouTube aggressively bans IPv6 cellular/datacenter subnets |
+| `--extractor-args "youtube:player-client=web,default"` | Uses the web embedded player client to bypass some anti-bot checks |
+| `--js-runtimes node` | Enables Node.js as the JavaScript runtime for solving YouTube's signature and n-challenges |
+| `--cookies <path>` | Passes the user-selected cookie file for authenticated downloads |
+
+The container also includes:
+- **Node.js 22** — Required by `yt-dlp >= 2026.08.19` (minimum Node 22.0.0 for the JS challenge solver)
+- **`yt-dlp-ejs`** — Python package providing the challenge solver scripts that `yt-dlp` uses to solve YouTube's JavaScript-based bot verification
+
+### Common Errors & Solutions
+
+#### ❌ `The page needs to be reloaded`
+
+**Root Cause:** YouTube sends JavaScript challenges (signature solving + n-challenges) that `yt-dlp` must solve using a JS runtime. If no supported runtime is available, every request fails with this error.
+
+**Solution (already applied in OpenVault):**
+1. The Docker API container uses **Node.js 22** (yt-dlp requires >= 22.0.0; Node 20 is marked `unsupported`)
+2. The `yt-dlp-ejs` Python package is installed in the container for challenge solver scripts
+3. The `--js-runtimes node` flag is passed to enable the Node.js runtime
+
+**If this error reappears after a `yt-dlp` update:**
+```bash
+# Rebuild the API container to pick up the latest yt-dlp binary and dependencies
+docker compose build --no-cache api
+docker compose up -d
+```
+
+#### ❌ `Sign in to confirm you're not a bot` / `HTTP Error 429: Too Many Requests`
+
+**Root Cause:** YouTube has rate-limited or IP-banned your server. This is common on datacenter IPs, VPNs, and mobile hotspot IPv6 addresses.
+
+**Solutions:**
+1. **Upload a fresh cookie file** via the Cookie Manager in the UI
+   - Use the browser extension **"Get cookies.txt LOCALLY"** (Firefox/Chrome) to export cookies in Netscape format
+   - Log into YouTube in an **Incognito/Private window**, play a video, then export
+   - **Do NOT sign out** after exporting — this invalidates the cookies
+2. **Change your public IP** — If using a mobile hotspot, toggle Airplane Mode on/off to get a new IP
+3. **Wait 24-48 hours** — YouTube 429 bans are temporary and typically lift automatically
+
+#### ❌ `ERROR: [youtube] ... Unable to download webpage: HTTP Error 429`
+
+**Root Cause:** Your public IPv6 address is being blocked. YouTube blanket-bans entire IPv6 cellular subnets.
+
+**Solution (already applied):** The `--force-ipv4` flag is included in all `yt-dlp` commands, forcing traffic through IPv4 only.
+
+#### ❌ `Signature solving failed` / `n challenge solving failed`
+
+**Root Cause:** The JavaScript challenge solver cannot run because:
+- Node.js version is too old (must be >= 22.0.0)
+- `yt-dlp-ejs` package is not installed
+- The `yt-dlp` binary is outdated
+
+**Solution:**
+```bash
+# Update yt-dlp to the latest version
+npm install youtube-dl-exec@latest --workspace=apps/api
+
+# Rebuild without cache to ensure fresh binaries
+docker compose build --no-cache api
+docker compose up -d
+```
+
+#### ❌ `The table public.ytdlp_cookies does not exist`
+
+**Root Cause:** The Prisma migration for the `ytdlp_cookies` table has not been applied to the database.
+
+**Solution:** This should resolve automatically on container startup (Prisma runs `migrate deploy` on boot). If it doesn't:
+```bash
+docker compose run --rm api npx prisma db push --schema=apps/api/prisma/schema.prisma
+```
+
+### Cookie File Requirements
+
+- **Format:** Must be in **Netscape/Mozilla cookie format** (the standard `cookies.txt` format)
+- **Export Tool:** Use the browser extension **"Get cookies.txt LOCALLY"** (available for Firefox and Chrome)
+- **Best Practice:** Export cookies from an **Incognito/Private window** to avoid session conflicts
+- **Important:** Do **NOT** sign out of YouTube after exporting — signing out immediately invalidates all session cookies
+- **Storage:** Cookie files are securely stored in MinIO and streamed to a temp file (`/tmp/`) only during the download; the temp file is immediately deleted afterward in a `finally` block
 
 ---
 
 ## 🗄️ Database Schema
 
-OpenVault uses **PostgreSQL 16** with **Prisma 6 ORM** and **14 models**:
+OpenVault uses **PostgreSQL 16** with **Prisma 6 ORM** and **15 models**:
 
 ```
 User
@@ -588,7 +692,8 @@ User
  │    └── ShareAccessLog  — Per-access log (view, download, otp_verify, password_verify)
  ├── Comment              — Threaded file comments (self-referencing parentId)
  ├── ActivityLog          — Immutable audit trail (action + JSONB metadata + IP)
- └── EncryptionKey        — Distributed key fragments (encrypted user key + server fragment)
+ ├── EncryptionKey        — Distributed key fragments (encrypted user key + server fragment)
+ └── YtdlpCookie          — Persistent cookie profiles for yt-dlp (name, domain, MinIO storage key)
 ```
 
 Notable design choices:
