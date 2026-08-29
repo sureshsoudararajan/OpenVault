@@ -292,11 +292,17 @@ npm run gen-secret   # paste into ENCRYPTION_SERVER_KEY (first 32 chars)
 
 ---
 
-### Step 3 — Start infrastructure services (dev only)
+### Step 3 — Start infrastructure services
+
+**⚠️ IMPORTANT:** The OpenVault backend *requires* PostgreSQL, Redis, MinIO, and MeiliSearch to be running before you can initialize the database or start the dev server.
+
+The easiest way to run these dependencies locally is using the provided Docker Compose file:
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d
 ```
+
+*(Note: If you prefer not to use Docker, you must manually install and start these 4 services on your machine and ensure their credentials match your `.env` file).*
 
 This starts **PostgreSQL**, **Redis**, **MinIO**, and **MeiliSearch** locally with all ports exposed for development. Verify they are running:
 
@@ -336,7 +342,17 @@ npx prisma migrate dev --schema=apps/api/prisma/schema.prisma --name init
 
 ---
 
-### Step 6 — Start development servers
+### Step 6 — Build workspace packages
+
+Because OpenVault is a monorepo, you must build the shared workspace packages before starting the development servers:
+
+```bash
+npm run build -w packages/config -w packages/crypto -w packages/shared-types
+```
+
+---
+
+### Step 7 — Start development servers
 
 ```bash
 # Start API and frontend concurrently
@@ -352,7 +368,7 @@ npm run dev:web   # Frontend → http://localhost:5173
 
 ---
 
-### Step 7 — Open in your browser
+### Step 8 — Open in your browser
 
 | Service | URL | Notes |
 |---|---|---|
