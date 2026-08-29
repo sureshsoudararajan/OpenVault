@@ -96,7 +96,7 @@ export async function fileRequestRoutes(app: FastifyInstance) {
         }
 
         // Use the storage helper to get an upload URL (we will dynamically import the storage helpers)
-        const { buildStorageKey, getPresignedUploadUrl } = await import('../../storage/minio.js');
+        const { buildStorageKey, getPresignedUploadUrl, rewriteMinioUrl } = await import('../../storage/minio.js');
         const { loadConfig } = await import('@openvault/config');
         const storageKey = buildStorageKey(requestLink.createdById, requestLink.folderId, `${Date.now()}-${name.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
         const rawUploadUrl = await getPresignedUploadUrl(loadConfig().minio.bucket, storageKey, 7200); const uploadUrl = rewriteMinioUrl(rawUploadUrl);
