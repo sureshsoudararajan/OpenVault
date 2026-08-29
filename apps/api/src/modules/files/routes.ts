@@ -758,6 +758,7 @@ export async function fileRoutes(app: FastifyInstance) {
                 sha256Hash: original.sha256Hash,
                 storageKey: original.storageKey,
                 encryptionKeyId: original.encryptionKeyId,
+                thumbnailKey: original.thumbnailKey,
             },
         });
 
