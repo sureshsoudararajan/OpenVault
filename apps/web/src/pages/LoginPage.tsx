@@ -97,7 +97,7 @@ export default function LoginPage() {
                 setRequireMfa(true);
             } else if (err.code === 'ACCOUNT_NOT_ACTIVATED') {
                 setNotActivated(true);
-                setError('Your account is not yet activated. Please check your email or resend the activation link.');
+                setError('Your account is not yet activated. Please check your email (and spam folder) or resend the activation link.');
             } else {
                 setError(err.message || 'Login failed');
             }
@@ -258,7 +258,7 @@ export default function LoginPage() {
 
             {resendSuccess && (
                 <div className="mb-4 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400 animate-fade-in">
-                    ✓ Activation email sent! Please check your inbox and click the activation link.
+                    ✓ Activation email sent! Please check your inbox (and spam folder) and click the activation link.
                 </div>
             )}
 
