@@ -42,7 +42,7 @@ export async function ytdlpRoutes(app: FastifyInstance) {
                 noCheckCertificates: true,
                 preferFreeFormats: true,
                 extractorArgs: 'youtube:player-client=web,default',
-                jsRuntimes: 'nodejs',
+                jsRuntimes: 'node',
                 forceIpv4: true
             };
 
@@ -152,7 +152,7 @@ export async function ytdlpRoutes(app: FastifyInstance) {
                 writeInfoJson: true, // Saves metadata for title extraction
                 newline: true, // Ensures progress updates are on new lines
                 extractorArgs: 'youtube:player-client=web,default',
-                jsRuntimes: 'nodejs',
+                jsRuntimes: 'node',
                 forceIpv4: true
             };
 
