@@ -653,25 +653,49 @@ export async function sharingRoutes(app: FastifyInstance) {
     app.get('/shared-with-me/:id/thumbnail', { preHandler: [authGuard] }, async (request, reply) => {
         const { id } = request.params as { id: string };
 
-        const permission = await prisma.permission.findFirst({
-            where: {
-                fileId: id,
-                grantedToId: request.userId,
-                OR: [
-                    { expiresAt: null },
-                    { expiresAt: { gt: new Date() } },
-                ],
-            },
-            include: {
-                file: { select: { thumbnailKey: true, isTrashed: true } },
-            },
+        // First look up the file itself
+        const file = await prisma.file.findFirst({
+            where: { id, isTrashed: false },
+            select: { thumbnailKey: true, folderId: true, folder: { select: { path: true } } },
         });
 
-        if (!permission || !permission.file || permission.file.isTrashed || !permission.file.thumbnailKey) {
+        if (!file || !file.thumbnailKey) {
             return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Thumbnail not found' } });
         }
 
-        const rawThumbnailUrl = await getPresignedDownloadUrl(config.minio.bucket, permission.file.thumbnailKey, 300);
+        // Check direct file-level permission
+        let hasAccess = false;
+        const filePerm = await prisma.permission.findFirst({
+            where: {
+                fileId: id,
+                grantedToId: request.userId,
+                OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+            },
+        });
+        if (filePerm) hasAccess = true;
+
+        // Check folder-level permission (file inside a shared folder)
+        if (!hasAccess && file.folderId && file.folder) {
+            const pathIds = (file.folder.path || '').split('/')
+                .filter(Boolean)
+                .filter((fid: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(fid));
+            pathIds.push(file.folderId);
+
+            const folderPerm = await prisma.permission.findFirst({
+                where: {
+                    grantedToId: request.userId,
+                    folderId: { in: pathIds },
+                    OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+                },
+            });
+            if (folderPerm) hasAccess = true;
+        }
+
+        if (!hasAccess) {
+            return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Thumbnail not found' } });
+        }
+
+        const rawThumbnailUrl = await getPresignedDownloadUrl(config.minio.bucket, file.thumbnailKey, 300);
         const downloadUrl = rewriteMinioUrl(rawThumbnailUrl);
         return { success: true, data: { downloadUrl } };
     });
