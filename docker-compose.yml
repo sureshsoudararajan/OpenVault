@@ -122,6 +122,7 @@ services:
       MEILI_HOST: http://meilisearch:7700
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       NODE_ENV: production
+      YTDLP_COOKIES_FILE: ${YTDLP_COOKIES_FILE:-}
     depends_on:
       postgres:
         condition: service_healthy

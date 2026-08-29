@@ -31,12 +31,18 @@ export async function ytdlpRoutes(app: FastifyInstance) {
         const { url } = bodyParse.data;
 
         try {
-            const output: any = await youtubedl(url, {
+            const options: any = {
                 dumpSingleJson: true,
                 noWarnings: true,
                 noCheckCertificates: true,
                 preferFreeFormats: true,
-            });
+            };
+
+            if (process.env.YTDLP_COOKIES_FILE) {
+                options.cookies = process.env.YTDLP_COOKIES_FILE;
+            }
+
+            const output: any = await youtubedl(url, options);
 
             return reply.send({
                 success: true,
@@ -112,14 +118,20 @@ export async function ytdlpRoutes(app: FastifyInstance) {
 
             app.log.info({ url, format }, 'Starting yt-dlp download streams...');
 
-            const ytProcess = youtubedl.exec(url, {
+            const dlOptions: any = {
                 format: format,
                 output: tempPathPattern,
                 noWarnings: true,
                 noCheckCertificates: true,
                 writeInfoJson: true, // Saves metadata for title extraction
                 newline: true // Ensures progress updates are on new lines
-            });
+            };
+
+            if (process.env.YTDLP_COOKIES_FILE) {
+                dlOptions.cookies = process.env.YTDLP_COOKIES_FILE;
+            }
+
+            const ytProcess = youtubedl.exec(url, dlOptions);
 
             if (ytProcess.stdout) {
                 ytProcess.stdout.on('data', (data) => {
