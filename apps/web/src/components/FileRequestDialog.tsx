@@ -54,7 +54,25 @@ export default function FileRequestDialog({ folderId, folderName, onClose }: Fil
 
     const handleCopy = () => {
         if (!createdLink) return;
-        navigator.clipboard.writeText(createdLink);
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(createdLink);
+        } else {
+            // Fallback for non-HTTPS local environments
+            const textArea = document.createElement("textarea");
+            textArea.value = createdLink;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            textArea.style.top = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+            } catch (err) {
+                console.error('Fallback copy failed', err);
+            }
+            textArea.remove();
+        }
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
