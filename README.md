@@ -383,12 +383,12 @@ npm run dev:web   # Frontend → http://localhost:5173
 
 ### One-Command Production Deployment
 
+> **⚠️ IMPORTANT:** Before deploying to production, you must change the default passwords for PostgreSQL, MinIO, and MeiliSearch in `docker-compose.yml` to secure, random strings. **You must also ensure that these exact same values are updated in your `.env` file so the API can authenticate with them.** See [Step 2](#step-2--configure-environment-variables) for generating secrets.
+
 ```bash
 # Build and start all 6 services
 docker compose up -d --build
 ```
-
-> **Before deploying to production**, make sure you have set secure values for all secrets in `.env`. See [Step 2](#step-2--configure-environment-variables) above.
 
 #### Services overview
 
