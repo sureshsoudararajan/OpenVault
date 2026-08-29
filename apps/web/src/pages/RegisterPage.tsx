@@ -33,7 +33,7 @@ export default function RegisterPage() {
                 </div>
                 <h2 className="text-2xl font-bold text-surface-900 dark:text-white mb-2">Check your email</h2>
                 <p className="text-surface-600 dark:text-surface-400 mb-8 max-w-sm mx-auto">
-                    We've sent an activation link to <span className="font-semibold text-surface-900 dark:text-white">{email}</span>. Please click the link to activate your account.
+                    We've sent an activation link to <span className="font-semibold text-surface-900 dark:text-white">{email}</span>. Please click the link to activate your account. (Be sure to check your spam folder too!)
                 </p>
                 <Link to="/login" className="btn-primary w-full flex justify-center items-center gap-2">
                     Back to login <ArrowRight className="h-4 w-4" />
