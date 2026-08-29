@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { sharingApi } from '../services/api';
 import {
     Shield, FileText, Lock, Download, Loader2, Eye,
-    Clock, AlertTriangle, FolderOpen, Key, Sun, Moon, LayoutGrid, List, Image, Film
+    Clock, AlertTriangle, FolderOpen, Key, Sun, Moon, LayoutGrid, List
 } from 'lucide-react';
 
 function isMedia(mime: string) { return mime.startsWith('image/') || mime.startsWith('video/'); }
