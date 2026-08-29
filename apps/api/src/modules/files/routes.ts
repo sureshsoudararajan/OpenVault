@@ -700,25 +700,59 @@ export async function fileRoutes(app: FastifyInstance) {
         return { success: true, data: { size: fileBuffer.length, version: newVersion } };
     });
 
-    // POST /api/files/:id/copy — Copy a file to another folder
+        // POST /api/files/:id/copy — Copy a file to another folder
     app.post('/:id/copy', { preHandler: [authGuard] }, async (request, reply) => {
         const { id } = request.params as { id: string };
         const { targetFolderId } = request.body as { targetFolderId?: string | null };
 
         const original = await prisma.file.findFirst({
-            where: { id, userId: request.userId },
+            where: { id },
+            include: { folder: { select: { path: true } } }
         });
 
         if (!original) {
             return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'File not found' } });
         }
 
+        // Verify access (can the user read this file?)
+        let hasAccess = original.userId === request.userId;
+        if (!hasAccess && original.folderId && original.folder) {
+            const pathIds = (original.folder.path || '').split('/').filter((fid: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(fid));
+            pathIds.push(original.folderId);
+            const perm = await prisma.permission.findFirst({
+                where: { grantedToId: request.userId, folderId: { in: pathIds } }
+            });
+            if (perm) hasAccess = true;
+        }
+        if (!hasAccess) {
+            const perm = await prisma.permission.findFirst({
+                where: { grantedToId: request.userId, fileId: id }
+            });
+            if (perm) hasAccess = true;
+        }
+
+        if (!hasAccess) {
+            return reply.status(403).send({ success: false, error: { code: 'FORBIDDEN', message: 'No permission to copy this file' } });
+        }
+
+        let targetUserId = request.userId;
+        if (targetFolderId) {
+            const folder = await prisma.folder.findUnique({ where: { id: targetFolderId }, select: { userId: true } });
+            if (folder) targetUserId = folder.userId;
+        }
+
+        // Check storage quota against target user
+        const targetUser = await prisma.user.findUnique({ where: { id: targetUserId }, select: { storageUsed: true, storageQuota: true } });
+        if (!targetUser || targetUser.storageUsed + original.size > targetUser.storageQuota) {
+            return reply.status(413).send({ success: false, error: { code: 'QUOTA_EXCEEDED', message: 'Storage quota exceeded for the target folder' } });
+        }
+
         // Create a copy (shares the same storageKey for dedup, new DB record)
         const copy = await prisma.file.create({
             data: {
-                userId: request.userId,
+                userId: targetUserId,
                 folderId: targetFolderId ?? null,
-                name: `${original.name}`,
+                name: original.name,
                 mimeType: original.mimeType,
                 size: original.size,
                 sha256Hash: original.sha256Hash,
@@ -741,7 +775,7 @@ export async function fileRoutes(app: FastifyInstance) {
 
         // Update storage usage
         await prisma.user.update({
-            where: { id: request.userId },
+            where: { id: targetUserId },
             data: { storageUsed: { increment: original.size } },
         });
 

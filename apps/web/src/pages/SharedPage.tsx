@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { sharingApi } from '../services/api';
+import { sharingApi, fileApi } from '../services/api';
 import {
     Share2, Loader2, File, Folder, Image, Film, FileText,
-    Download, AlertCircle, UserCircle, Clock, LayoutGrid, List,
+    Download, AlertCircle, UserCircle, Clock, LayoutGrid, List, Save,
     Search
 } from 'lucide-react';
 import Thumbnail from '../components/Thumbnail';
@@ -256,6 +256,17 @@ function FileCard({ item, onPreview }: { item: SharedItem; onPreview: (f: FileRe
         }
     };
 
+    const handleSaveToDrive = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            await fileApi.copy(file.id, null);
+            alert('Saved to My Drive successfully!');
+        } catch (err) {
+            console.error('Failed to save to drive', err);
+            alert('Failed to save to My Drive');
+        }
+    };
+
     return (
         <div
             onClick={() => onPreview(file)}
@@ -281,8 +292,15 @@ function FileCard({ item, onPreview }: { item: SharedItem; onPreview: (f: FileRe
                 </div>
             </div>
 
-            {/* Download btn on hover */}
-            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Download/Save btn on hover */}
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                <button
+                    onClick={handleSaveToDrive}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/90 dark:bg-surface-800/90 shadow text-surface-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                    title="Save to My Drive"
+                >
+                    <Save className="h-3.5 w-3.5" />
+                </button>
                 <button
                     onClick={handleDownload}
                     className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/90 dark:bg-surface-800/90 shadow text-surface-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
@@ -308,6 +326,17 @@ function FileListRow({ item, onPreview }: { item: SharedItem; onPreview: (f: Fil
         }
     };
 
+    const handleSaveToDrive = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            await fileApi.copy(file.id, null);
+            alert('Saved to My Drive successfully!');
+        } catch (err) {
+            console.error('Failed to save to drive', err);
+            alert('Failed to save to My Drive');
+        }
+    };
+
     return (
         <div
             onClick={() => onPreview(file)}
@@ -327,13 +356,22 @@ function FileListRow({ item, onPreview }: { item: SharedItem; onPreview: (f: Fil
                 {formatDate(item.sharedAt)}
             </div>
             <RoleBadge role={item.role} />
-            <button
-                onClick={handleDownload}
-                className="ml-1 flex-shrink-0 rounded-lg p-1.5 text-surface-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
-                title="Download"
-            >
-                <Download className="h-4 w-4" />
-            </button>
+            <div className="ml-1 flex gap-1">
+                <button
+                    onClick={handleSaveToDrive}
+                    className="flex-shrink-0 rounded-lg p-1.5 text-surface-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
+                    title="Save to My Drive"
+                >
+                    <Save className="h-4 w-4" />
+                </button>
+                <button
+                    onClick={handleDownload}
+                    className="flex-shrink-0 rounded-lg p-1.5 text-surface-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
+                    title="Download"
+                >
+                    <Download className="h-4 w-4" />
+                </button>
+            </div>
         </div>
     );
 }
