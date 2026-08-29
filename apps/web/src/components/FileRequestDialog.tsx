@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, Copy, CheckCircle2, Link as LinkIcon, Inbox } from 'lucide-react';
+import { useAuthStore } from '../stores/authStore';
 
 interface FileRequestDialogProps {
     folderId: string;
@@ -33,7 +34,7 @@ export default function FileRequestDialog({ folderId, folderName, onClose }: Fil
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('openvault_token')}`
+                    'Authorization': `Bearer ${useAuthStore.getState().accessToken}`
                 },
                 body: JSON.stringify(body)
             }).then(r => r.json());
