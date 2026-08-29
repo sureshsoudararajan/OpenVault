@@ -66,10 +66,38 @@ export async function searchRoutes(app: FastifyInstance) {
             return { success: true, data: [], meta: { page, perPage, total: 0 } };
         }
 
+        // 1. Resolve shared files and folders to include in search
+        const permissions = await prisma.permission.findMany({
+            where: { grantedToId: request.userId, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+            include: { folder: { select: { path: true, id: true } } }
+        });
+
+        const explicitFileIds = permissions.map(p => p.fileId).filter(Boolean) as string[];
+        const explicitFolderPaths = permissions.map(p => p.folder?.path).filter(Boolean) as string[];
+        
+        let allAccessibleFolderIds: string[] = permissions.map(p => p.folderId).filter(Boolean) as string[];
+        
+        if (explicitFolderPaths.length > 0) {
+            const nested = await prisma.folder.findMany({
+                where: { OR: explicitFolderPaths.map(path => ({ path: { startsWith: path } })) },
+                select: { id: true }
+            });
+            allAccessibleFolderIds = Array.from(new Set([...allAccessibleFolderIds, ...nested.map(f => f.id)]));
+        }
+
         try {
             const index = getMeili().index(FILES_INDEX);
+            
+            let filter = `userId = "${request.userId}"`;
+            if (explicitFileIds.length > 0 || allAccessibleFolderIds.length > 0) {
+                const parts = [];
+                if (explicitFileIds.length > 0) parts.push(`id IN [${explicitFileIds.map(id => `"${id}"`).join(', ')}]`);
+                if (allAccessibleFolderIds.length > 0) parts.push(`folderId IN [${allAccessibleFolderIds.map(id => `"${id}"`).join(', ')}]`);
+                filter = `(${filter}) OR (${parts.join(' OR ')})`;
+            }
+
             const results = await index.search(q, {
-                filter: [`userId = "${request.userId}"`],
+                filter,
                 limit: perPage,
                 offset: (page - 1) * perPage,
             });
@@ -86,20 +114,29 @@ export async function searchRoutes(app: FastifyInstance) {
             };
         } catch {
             // Fallback to database search if MeiliSearch is unavailable
+            const dbWhere: any = {
+                isTrashed: false,
+                name: { contains: q, mode: 'insensitive' },
+            };
+
+            if (explicitFileIds.length > 0 || allAccessibleFolderIds.length > 0) {
+                dbWhere.OR = [
+                    { userId: request.userId },
+                    ...(explicitFileIds.length > 0 ? [{ id: { in: explicitFileIds } }] : []),
+                    ...(allAccessibleFolderIds.length > 0 ? [{ folderId: { in: allAccessibleFolderIds } }] : [])
+                ];
+            } else {
+                dbWhere.userId = request.userId;
+            }
+
             const [files, total] = await Promise.all([
                 prisma.file.findMany({
-                    where: {
-                        userId: request.userId,
-                        isTrashed: false,
-                        name: { contains: q, mode: 'insensitive' },
-                    },
+                    where: dbWhere,
                     skip: (page - 1) * perPage,
                     take: perPage,
                     select: { id: true, name: true, mimeType: true, size: true, createdAt: true, thumbnailKey: true },
                 }),
-                prisma.file.count({
-                    where: { userId: request.userId, isTrashed: false, name: { contains: q, mode: 'insensitive' } },
-                }),
+                prisma.file.count({ where: dbWhere }),
             ]);
 
             return {
