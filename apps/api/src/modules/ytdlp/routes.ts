@@ -5,16 +5,19 @@ import { authGuard } from '../../middleware/auth';
 import prisma from '../../db/index';
 import { loadConfig } from '@openvault/config';
 import { sha256 } from '@openvault/crypto';
-import { uploadObject, buildStorageKey } from '../../storage/minio';
+import { uploadObject, buildStorageKey, getObject } from '../../storage/minio';
 import { enqueueThumbnail, enqueueDedupScan } from '../../jobs/index';
 import fs from 'fs/promises';
-import { createReadStream } from 'fs';
+import { createReadStream, createWriteStream } from 'fs';
+import { pipeline } from 'stream/promises';
 import path from 'path';
+import { randomUUID } from 'crypto';
 
 const config = loadConfig();
 
 const fetchSchema = z.object({
     url: z.string().url(),
+    cookieId: z.string().uuid().optional().nullable(),
 });
 
 export async function ytdlpRoutes(app: FastifyInstance) {
@@ -28,7 +31,9 @@ export async function ytdlpRoutes(app: FastifyInstance) {
             });
         }
 
-        const { url } = bodyParse.data;
+        const { url, cookieId } = bodyParse.data;
+
+        let tempCookiePath: string | null = null;
 
         try {
             const options: any = {
@@ -38,7 +43,19 @@ export async function ytdlpRoutes(app: FastifyInstance) {
                 preferFreeFormats: true,
             };
 
-            if (process.env.YTDLP_COOKIES_FILE) {
+            if (cookieId) {
+                const cookieProfile = await prisma.ytdlpCookie.findUnique({
+                    where: { id: cookieId }
+                });
+                if (!cookieProfile || cookieProfile.userId !== request.userId) {
+                    return reply.status(403).send({ success: false, error: { code: 'FORBIDDEN', message: 'Cookie profile not found or unauthorized' } });
+                }
+                
+                tempCookiePath = `/tmp/ytdlp_cookie_${randomUUID()}.txt`;
+                const cookieStream = await getObject(config.minio.bucket, cookieProfile.storageKey);
+                await pipeline(cookieStream, createWriteStream(tempCookiePath));
+                options.cookies = tempCookiePath;
+            } else if (process.env.YTDLP_COOKIES_FILE) {
                 options.cookies = process.env.YTDLP_COOKIES_FILE;
             }
 
@@ -72,6 +89,10 @@ export async function ytdlpRoutes(app: FastifyInstance) {
                 success: false,
                 error: { code: 'YTDLP_ERROR', message: 'Failed to fetch video information. Ensure the URL is valid and supported.' }
             });
+        } finally {
+            if (tempCookiePath) {
+                await fs.unlink(tempCookiePath).catch(() => {});
+            }
         }
     });
 
@@ -79,6 +100,7 @@ export async function ytdlpRoutes(app: FastifyInstance) {
         url: z.string().url(),
         format: z.string().min(1),
         folderId: z.string().uuid().nullable().optional(),
+        cookieId: z.string().uuid().optional().nullable(),
     });
 
     // Helper for random string
@@ -94,9 +116,10 @@ export async function ytdlpRoutes(app: FastifyInstance) {
             });
         }
 
-        const { url, format, folderId } = bodyParse.data;
+        const { url, format, folderId, cookieId } = bodyParse.data;
         const tempFilename = `ytdlp_${Date.now()}_${randomString()}`;
         const tempPathPattern = `/tmp/${tempFilename}.%(ext)s`;
+        let tempCookiePath: string | null = null;
 
         try {
             // Check storage quota first before downloading
@@ -127,7 +150,20 @@ export async function ytdlpRoutes(app: FastifyInstance) {
                 newline: true // Ensures progress updates are on new lines
             };
 
-            if (process.env.YTDLP_COOKIES_FILE) {
+            if (cookieId) {
+                const cookieProfile = await prisma.ytdlpCookie.findUnique({
+                    where: { id: cookieId }
+                });
+                if (!cookieProfile || cookieProfile.userId !== request.userId) {
+                    reply.raw.write(JSON.stringify({ type: 'error', error: 'Cookie profile not found or unauthorized' }) + '\n');
+                    return reply.raw.end();
+                }
+                
+                tempCookiePath = `/tmp/ytdlp_cookie_${randomString()}.txt`;
+                const cookieStream = await getObject(config.minio.bucket, cookieProfile.storageKey);
+                await pipeline(cookieStream, createWriteStream(tempCookiePath));
+                dlOptions.cookies = tempCookiePath;
+            } else if (process.env.YTDLP_COOKIES_FILE) {
                 dlOptions.cookies = process.env.YTDLP_COOKIES_FILE;
             }
 
@@ -299,6 +335,10 @@ export async function ytdlpRoutes(app: FastifyInstance) {
              } else {
                   reply.raw.write(JSON.stringify({ type: 'error', error: 'Failed to download the requested format. Check logs.' }) + '\n');
                   return reply.raw.end();
+             }
+        } finally {
+             if (tempCookiePath) {
+                 await fs.unlink(tempCookiePath).catch(() => {});
              }
         }
     });

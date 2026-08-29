@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Download, Film, Music, X, Loader2, AlertCircle } from 'lucide-react';
 import { ytdlpApi } from '../services/api';
+import CookieSelector from './CookieSelector';
+import CookieManagerDialog from './CookieManagerDialog';
 
 interface FetchVideoDialogProps {
     isOpen: boolean;
@@ -38,6 +40,9 @@ export default function FetchVideoDialog({ isOpen, onClose, currentFolderId, onC
     const [error, setError] = useState<string | null>(null);
     const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
 
+    const [selectedCookieId, setSelectedCookieId] = useState<string | null>(null);
+    const [showCookieManager, setShowCookieManager] = useState(false);
+
     const [selectedVideoFormat, setSelectedVideoFormat] = useState<string | null>(null);
     const [selectedAudioFormat, setSelectedAudioFormat] = useState<string | null>(null);
 
@@ -69,7 +74,7 @@ export default function FetchVideoDialog({ isOpen, onClose, currentFolderId, onC
         setSelectedAudioFormat(null);
 
         try {
-            const res: any = await ytdlpApi.fetchInfo(url);
+            const res: any = await ytdlpApi.fetchInfo(url, selectedCookieId || undefined);
             setVideoInfo(res.data);
             
             // Auto-select best ones by default if they exist
@@ -109,7 +114,7 @@ export default function FetchVideoDialog({ isOpen, onClose, currentFolderId, onC
         setDownloadSize('');
 
         try {
-            const response = await ytdlpApi.downloadStream(url, formatToRequest, currentFolderId || null);
+            const response = await ytdlpApi.downloadStream(url, formatToRequest, currentFolderId || null, selectedCookieId || undefined);
             
             if (!response.body) {
                 throw new Error("No response body returned");
@@ -228,6 +233,16 @@ export default function FetchVideoDialog({ isOpen, onClose, currentFolderId, onC
                             >
                                 {loadingInfo ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Fetch Info'}
                             </button>
+                        </div>
+                        
+                        <div className="w-full">
+                            <CookieSelector 
+                                url={url} 
+                                selectedCookieId={selectedCookieId} 
+                                onChange={setSelectedCookieId} 
+                                onManageCookies={() => setShowCookieManager(true)}
+                                onUploadNew={() => setShowCookieManager(true)}
+                            />
                         </div>
                     </div>
 
@@ -394,6 +409,12 @@ export default function FetchVideoDialog({ isOpen, onClose, currentFolderId, onC
                     </div>
                 )}
             </div>
+
+            <CookieManagerDialog 
+                isOpen={showCookieManager} 
+                onClose={() => setShowCookieManager(false)} 
+                onCookieSelected={setSelectedCookieId}
+            />
         </div>
     );
 }

@@ -348,12 +348,27 @@ export const dedupApi = {
 // ============================================
 
 export const ytdlpApi = {
-    fetchInfo: (url: string) => request('/ytdlp/fetch-info', { method: 'POST', body: { url } }),
-    download: (url: string, format: string, folderId: string | null) =>
-        request('/ytdlp/download', { method: 'POST', body: { url, format, folderId } }),
+    fetchInfo: (url: string, cookieId?: string) => request('/ytdlp/fetch-info', { method: 'POST', body: { url, cookieId } }),
+    download: (url: string, format: string, folderId: string | null, cookieId?: string) =>
+        request('/ytdlp/download', { method: 'POST', body: { url, format, folderId, cookieId } }),
+
+    getCookies: () => request('/ytdlp/cookies'),
+    createCookie: (formData: FormData) => {
+        const { accessToken } = useAuthStore.getState();
+        const headers: Record<string, string> = {};
+        if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+        return fetch(`${API_BASE}/ytdlp/cookies`, { method: 'POST', headers, body: formData }).then(r => r.json());
+    },
+    updateCookie: (id: string, formData: FormData) => {
+        const { accessToken } = useAuthStore.getState();
+        const headers: Record<string, string> = {};
+        if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+        return fetch(`${API_BASE}/ytdlp/cookies/${id}`, { method: 'PUT', headers, body: formData }).then(r => r.json());
+    },
+    deleteCookie: (id: string) => request(`/ytdlp/cookies/${id}`, { method: 'DELETE' }),
 
     // Custom method to return the raw Response for streaming NDJSON
-    downloadStream: async (url: string, format: string, folderId: string | null): Promise<Response> => {
+    downloadStream: async (url: string, format: string, folderId: string | null, cookieId?: string): Promise<Response> => {
         const { accessToken, refreshToken, setAuth } = useAuthStore.getState();
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
         if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
@@ -361,7 +376,7 @@ export const ytdlpApi = {
         let response = await fetch(`${API_BASE}/ytdlp/download`, {
             method: 'POST',
             headers,
-            body: JSON.stringify({ url, format, folderId })
+            body: JSON.stringify({ url, format, folderId, cookieId })
         });
 
         // Handle token refresh logic for the streaming request
@@ -381,7 +396,7 @@ export const ytdlpApi = {
                 response = await fetch(`${API_BASE}/ytdlp/download`, {
                     method: 'POST',
                     headers,
-                    body: JSON.stringify({ url, format, folderId })
+                    body: JSON.stringify({ url, format, folderId, cookieId })
                 });
             }
         }

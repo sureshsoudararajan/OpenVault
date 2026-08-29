@@ -19,6 +19,7 @@ import { dedupRoutes } from './modules/dedup/routes';
 import { tagRoutes } from './modules/tags/routes';
 
 import { ytdlpRoutes } from './modules/ytdlp/routes';
+import { ytdlpCookieRoutes } from './modules/ytdlp/cookie.routes';
 
 export async function buildApp() {
     const config = loadConfig();
@@ -127,6 +128,7 @@ export async function buildApp() {
             await api.register(dedupRoutes, { prefix: '/dedup' });
             await api.register(tagRoutes, { prefix: '/tags' });
             await api.register(ytdlpRoutes, { prefix: '/ytdlp' });
+            await api.register(ytdlpCookieRoutes, { prefix: '/ytdlp' });
         },
         { prefix: '/api' }
     );
