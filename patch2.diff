@@ -1,0 +1,61 @@
+--- apps/api/src/modules/file-requests/routes.ts
++++ apps/api/src/modules/file-requests/routes.ts
+@@ -96,9 +96,10 @@
+         }
+ 
+         // Use the storage helper to get an upload URL (we will dynamically import the storage helpers)
+-        const { buildStorageKey, getPresignedUploadUrl } = await import('../../storage/minio.js');
+-        const storageKey = buildStorageKey(requestLink.createdById, name);
+-        const uploadUrl = await getPresignedUploadUrl(storageKey, mimeType, size);
++        const { loadConfig } = await import('@openvault/config');
++        const { buildStorageKey, getPresignedUploadUrl, rewriteMinioUrl } = await import('../../storage/minio.js');
++        const storageKey = buildStorageKey(requestLink.createdById, requestLink.folderId, `${Date.now()}-${name.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
++        const uploadUrl = rewriteMinioUrl(await getPresignedUploadUrl(loadConfig().minio.bucket, storageKey, 7200));
+ 
+         return reply.status(200).send({ success: true, uploadUrl, storageKey });
+     });
+@@ -106,11 +107,12 @@
+     app.post('/:token/upload/complete', async (request, reply) => {
+         const { token } = z.object({ token: z.string() }).parse(request.params);
+-        const { storageKey, name, mimeType, size } = z.object({
++        const { storageKey, name, mimeType, size, sha256Hash } = z.object({
+             storageKey: z.string().min(1),
+             name: z.string().min(1).max(255),
+             mimeType: z.string().min(1),
+-            size: z.number().positive()
++            size: z.number().positive(),
++            sha256Hash: z.string().optional()
+         }).parse(request.body);
+ 
+         const requestLink = await prisma.fileRequestLink.findUnique({
+@@ -120,8 +122,9 @@
+             return reply.status(403).send({ success: false, error: { code: 'FORBIDDEN', message: 'Invalid or expired file request' } });
+         }
+ 
++        const { loadConfig } = await import('@openvault/config');
+         const { objectExists } = await import('../../storage/minio.js');
+-        const exists = await objectExists(storageKey);
++        const exists = await objectExists(loadConfig().minio.bucket, storageKey);
+         if (!exists) {
+             return reply.status(400).send({ success: false, error: { code: 'NOT_FOUND', message: 'File not found in storage' } });
+         }
+@@ -148,8 +151,7 @@
+                 storageKey,
+                 mimeType,
+                 size: BigInt(Math.ceil(size)),
+-                isUploaded: true
+             }
+         });
+ 
+@@ -161,9 +163,9 @@
+         // Trigger jobs
+         const { enqueueThumbnail, enqueueDedupScan } = await import('../../jobs/index.js');
+         if (mimeType.startsWith('image/') || mimeType.startsWith('video/')) {
+-            enqueueThumbnail(file.id);
++            enqueueThumbnail(file.id, mimeType, storageKey);
+         }
+-        enqueueDedupScan(file.id);
++        enqueueDedupScan(file.id, sha256Hash || '', requestLink.createdById);
+ 
+         return reply.status(200).send({ success: true, file });
+     });

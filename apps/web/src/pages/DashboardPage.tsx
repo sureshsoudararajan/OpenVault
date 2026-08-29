@@ -5,6 +5,7 @@ import { fileApi, folderApi, searchApi, tagApi } from '../services/api';
 import FilePreview from '../components/FilePreview';
 import Thumbnail from '../components/Thumbnail';
 import ShareDialog from '../components/ShareDialog';
+import FileRequestDialog from '../components/FileRequestDialog';
 import DetailsDialog from '../components/DetailsDialog';
 import TagDialog from '../components/TagDialog';
 import FetchVideoDialog from '../components/FetchVideoDialog';
@@ -13,7 +14,7 @@ import {
     Grid3X3, List, FolderPlus, Upload, ChevronRight,
     FileText, Image, Film, FileArchive, File, MoreVertical,
     Download, Pencil, Trash2, Share2, FolderOpen, Eye, Copy, Info, Music,
-    Clipboard, CheckSquare, X, Tag as TagIcon, Palette,
+    Clipboard, CheckSquare, X, Tag as TagIcon, Palette, Inbox,
     AlignLeft, Table, Presentation, Youtube
 } from 'lucide-react';
 
@@ -110,6 +111,7 @@ function DashboardPage() {
 
     const [detailsTarget, setDetailsTarget] = useState<{ id: string; type: 'file' | 'folder'; name: string } | null>(null);
     const [shareTarget, setShareTarget] = useState<{ id: string; type: 'file' | 'folder'; name: string } | null>(null);
+    const [requestTarget, setRequestTarget] = useState<{ id: string; name: string } | null>(null);
     const [tagTarget, setTagTarget] = useState<FileItem | null>(null);
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [showFetchVideo, setShowFetchVideo] = useState(false);
@@ -315,6 +317,7 @@ function DashboardPage() {
     const handleDownload = async () => { if (!contextMenu || contextMenu.type !== 'file') return; try { const res: any = await fileApi.download(contextMenu.id); window.open(res.data.downloadUrl, '_blank'); } catch (err) { console.error('Download failed:', err); } closeContextMenu(); };
     const handlePreview = () => { if (!contextMenu || contextMenu.type !== 'file') return; if (contextMenu.fileIndex !== undefined) setPreviewIndex(contextMenu.fileIndex); closeContextMenu(); };
     const handleShare = () => { if (!contextMenu) return; setShareTarget({ id: contextMenu.id, type: contextMenu.type as 'file' | 'folder', name: contextMenu.name }); closeContextMenu(); };
+    const handleRequestFiles = () => { if (!contextMenu || contextMenu.type !== 'folder') return; setRequestTarget({ id: contextMenu.id, name: contextMenu.name }); closeContextMenu(); };
     const handleCopy = () => { if (!contextMenu || contextMenu.type === 'background') return; setClipboard([{ id: contextMenu.id, type: contextMenu.type, name: contextMenu.name }], 'copy'); setPasteStatus('1 item copied'); setTimeout(() => setPasteStatus(null), 2000); closeContextMenu(); };
     const startRename = () => { if (!contextMenu) return; setRenaming({ type: contextMenu.type as 'file' | 'folder', id: contextMenu.id, name: contextMenu.name }); setRenameValue(contextMenu.name); closeContextMenu(); };
     const handleRename = async () => { if (!renaming || !renameValue.trim()) return; try { if (renaming.type === 'file') await fileApi.rename(renaming.id, renameValue.trim()); else await folderApi.rename(renaming.id, renameValue.trim()); setRenaming(null); loadContent(); } catch (err) { console.error('Rename failed:', err); } };
@@ -819,6 +822,7 @@ function DashboardPage() {
 
                                 <button onClick={handleShare} className="menu-item"><Share2 className="h-4 w-4" /> Share</button>
                                 <button onClick={startRename} className="menu-item"><Pencil className="h-4 w-4" /> Rename</button>
+                                {contextMenu.type === 'folder' && <button onClick={handleRequestFiles} className="menu-item"><Inbox className="h-4 w-4" /> Request Files</button>}
 
                                 {contextMenu.type === 'file' && (
                                     <button onClick={() => { const file = files.find(f => f.id === contextMenu.id); if (file) setTagTarget(file); closeContextMenu(); }} className="menu-item">
@@ -876,6 +880,7 @@ function DashboardPage() {
             {/* Dialogs */}
             {detailsTarget && <DetailsDialog id={detailsTarget.id} type={detailsTarget.type} name={detailsTarget.name} onClose={() => setDetailsTarget(null)} />}
             {shareTarget && <ShareDialog resourceId={shareTarget.id} resourceType={shareTarget.type} resourceName={shareTarget.name} onClose={() => setShareTarget(null)} />}
+            {requestTarget && <FileRequestDialog folderId={requestTarget.id} folderName={requestTarget.name} onClose={() => setRequestTarget(null)} />}
             
             <FetchVideoDialog
                 isOpen={showFetchVideo}

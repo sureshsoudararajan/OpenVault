@@ -9,6 +9,7 @@ import TrashPage from './pages/TrashPage';
 import SharedPage from './pages/SharedPage';
 import SettingsPage from './pages/SettingsPage';
 import ShareLinkPage from './pages/ShareLinkPage';
+import FileRequestPage from './pages/FileRequestPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import ActivatePage from './pages/ActivatePage';
@@ -30,6 +31,7 @@ export default function App() {
         <Routes>
             {/* Public routes */}
             <Route path="/share/:token" element={<ShareLinkPage />} />
+            <Route path="/request/:token" element={<FileRequestPage />} />
 
             {/* Auth routes */}
             <Route element={<GuestRoute><AuthLayout /></GuestRoute>}>

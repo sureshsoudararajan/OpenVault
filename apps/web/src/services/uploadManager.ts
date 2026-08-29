@@ -192,3 +192,132 @@ export async function uploadFiles(
         }
     }
 }
+
+export async function uploadRequestFile(file: File, token: string, options: UploadOptions = {}): Promise<any> {
+    const { onComplete, onError } = options;
+    const store = useUploadStore.getState();
+    const id = uid();
+
+    store.addUpload({
+        id,
+        fileName: file.name,
+        fileSize: file.size,
+        folderId: null,
+    });
+
+    try {
+        const initRes = await fetch(`/api/file-requests/${token}/upload/init`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: file.name,
+                size: file.size,
+                mimeType: file.type || 'application/octet-stream',
+            }),
+        }).then(res => res.json());
+
+        if (!initRes.success) throw new Error(initRes.error?.message || 'Init failed');
+
+        const { uploadUrl, storageKey } = initRes;
+
+        store.updateUpload(id, { status: 'uploading', startedAt: Date.now() });
+
+        await new Promise<void>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            const SPEED_WINDOW = 2000;
+            const speedSamples: { loaded: number; time: number }[] = [];
+
+            store.updateUpload(id, {
+                abort: () => {
+                    xhr.abort();
+                    reject(new Error('Upload cancelled'));
+                },
+            });
+
+            xhr.upload.addEventListener('progress', (event) => {
+                if (!event.lengthComputable) return;
+                const now = Date.now();
+                speedSamples.push({ loaded: event.loaded, time: now });
+                const cutoff = now - SPEED_WINDOW;
+                while (speedSamples.length > 1 && speedSamples[0].time < cutoff) speedSamples.shift();
+                const oldest = speedSamples[0];
+                const bytesInWindow = event.loaded - oldest.loaded;
+                const timeInWindow = (now - oldest.time) / 1000;
+                const speed = timeInWindow > 0 ? bytesInWindow / timeInWindow : 0;
+                const remaining = event.total - event.loaded;
+                const eta = speed > 0 ? remaining / speed : 0;
+
+                store.updateUpload(id, {
+                    uploaded: event.loaded,
+                    speed: Math.round(speed),
+                    eta: Math.round(eta),
+                });
+            });
+
+            xhr.addEventListener('load', () => {
+                if (xhr.status >= 200 && xhr.status < 300) resolve();
+                else reject(new Error(`Storage upload failed: HTTP ${xhr.status}`));
+            });
+            xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
+            xhr.addEventListener('abort', () => reject(new Error('Upload cancelled')));
+
+            xhr.open('PUT', uploadUrl);
+            xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+            xhr.send(file);
+        });
+
+        const completeRes = await fetch(`/api/file-requests/${token}/upload/complete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                storageKey,
+                name: file.name,
+                mimeType: file.type || 'application/octet-stream',
+                size: file.size,
+            }),
+        }).then(res => res.json());
+
+        if (!completeRes.success) throw new Error(completeRes.error?.message || 'Complete failed');
+
+        store.updateUpload(id, { status: 'done', uploaded: file.size, speed: 0, eta: 0 });
+        setTimeout(() => useUploadStore.getState().removeUpload(id), 4000);
+
+        onComplete?.(completeRes.file);
+        return completeRes.file;
+    } catch (err: any) {
+        let errorMsg = err.message || 'Upload failed';
+        store.updateUpload(id, { status: 'error', error: errorMsg });
+        setTimeout(() => useUploadStore.getState().removeUpload(id), 8000);
+        onError?.(file.name, errorMsg);
+        throw err;
+    }
+}
+
+export async function uploadRequestFiles(files: FileList | File[], token: string, options: UploadOptions = {}, maxConcurrent = 3): Promise<void> {
+    const arr = Array.from(files);
+    const queue = [...arr];
+    const active: Promise<any>[] = [];
+
+    const runNext = (): Promise<any> | null => {
+        if (queue.length === 0) return null;
+        const file = queue.shift()!;
+        return uploadRequestFile(file, token, options).catch(() => {});
+    };
+
+    for (let i = 0; i < Math.min(maxConcurrent, arr.length); i++) {
+        const p = runNext();
+        if (p) active.push(p);
+    }
+
+    while (active.length > 0) {
+        await Promise.race(active);
+        for (let i = active.length - 1; i >= 0; i--) {
+            const settled = await Promise.race([active[i], Promise.resolve('pending')]);
+            if (settled !== 'pending') {
+                active.splice(i, 1);
+                const p = runNext();
+                if (p) active.push(p);
+            }
+        }
+    }
+}

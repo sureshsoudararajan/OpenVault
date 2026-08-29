@@ -20,6 +20,7 @@ import { tagRoutes } from './modules/tags/routes';
 
 import { ytdlpRoutes } from './modules/ytdlp/routes';
 import { ytdlpCookieRoutes } from './modules/ytdlp/cookie.routes';
+import { fileRequestRoutes } from './modules/file-requests/routes';
 
 export async function buildApp() {
     const config = loadConfig();
