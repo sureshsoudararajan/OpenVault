@@ -41,6 +41,7 @@ export async function ytdlpRoutes(app: FastifyInstance) {
                 noWarnings: true,
                 noCheckCertificates: true,
                 preferFreeFormats: true,
+                extractorArgs: 'youtube:player-client=web,default',
             };
 
             if (cookieId) {
@@ -147,7 +148,8 @@ export async function ytdlpRoutes(app: FastifyInstance) {
                 noWarnings: true,
                 noCheckCertificates: true,
                 writeInfoJson: true, // Saves metadata for title extraction
-                newline: true // Ensures progress updates are on new lines
+                newline: true, // Ensures progress updates are on new lines
+                extractorArgs: 'youtube:player-client=web,default'
             };
 
             if (cookieId) {
