@@ -192,6 +192,7 @@ function DashboardPage() {
             if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
             if (e.ctrlKey && e.key === 'a') { e.preventDefault(); selectAllFiles(files.map(f => f.id)); }
             if (e.ctrlKey && e.key === 'c') {
+                if (window.getSelection()?.toString()) return;
                 e.preventDefault();
                 const items = [
                     ...Array.from(selectedFiles).map(id => { const f = files.find(f => f.id === id); return f ? { id: f.id, type: 'file' as const, name: f.name } : null; }),

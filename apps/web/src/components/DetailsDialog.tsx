@@ -71,6 +71,8 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
     const [details, setDetails] = useState<any>(null);
     const [permissions, setPermissions] = useState<any[]>([]);
     const [fileRequests, setFileRequests] = useState<any[]>([]);
+    const [publicLinks, setPublicLinks] = useState<any[]>([]);
+    const [deletingLink, setDeletingLink] = useState<string | null>(null);
     const [deletingRequest, setDeletingRequest] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<Tab>('info');
@@ -88,6 +90,11 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
                 try {
                     const permRes: any = await sharingApi.listPermissions(id);
                     setPermissions(permRes.data || []);
+                } catch { /* ignore */ }
+
+                try {
+                    const linkRes: any = await sharingApi.listLinks(id);
+                    setPublicLinks(linkRes.data || []);
                 } catch { /* ignore */ }
                 
                 if (type === 'folder') {
@@ -157,6 +164,16 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
         } finally {
             setDeletingRequest(null);
         }
+    };
+
+const handleDeleteLink = async (linkId: string) => {
+        if (!confirm('Are you sure you want to delete this share link?')) return;
+        setDeletingLink(linkId);
+        try {
+            const res: any = await sharingApi.deleteLink(linkId);
+            if (res.success) setPublicLinks(prev => prev.filter(l => l.id !== linkId));
+        } catch { alert('Failed to delete link'); }
+        setDeletingLink(null);
     };
 
     const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -335,6 +352,49 @@ export default function DetailsDialog({ id, type, name, onClose }: DetailsDialog
                                     <p className="text-sm text-surface-500 dark:text-surface-400">Not shared yet</p>
 
                                     <p className="text-xs text-surface-400 dark:text-surface-600 mt-1">Use the Share option to create a share link</p>
+                                </div>
+                            )}
+
+
+                            {publicLinks.length > 0 && (
+                                <div className="mt-6">
+                                    <h4 className="text-[10px] uppercase tracking-widest text-surface-500 font-semibold mb-2">Public Share Links</h4>
+                                    <div className="space-y-2">
+                                        {publicLinks.map(link => {
+                                            const linkUrl = `${window.location.origin}/share/${link.token}`;
+                                            return (
+                                            <div key={link.id} className="flex flex-col gap-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/30 px-3 py-2.5">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="min-w-0 flex-1 flex items-center gap-2">
+                                                        <Link2 className="h-4 w-4 text-brand-500" />
+                                                        <span className="text-sm font-medium text-surface-900 dark:text-white capitalize">{link.permission} Access</span>
+                                                        {link.passwordHash && <Shield className="h-3.5 w-3.5 text-amber-500" title="Password Protected" />}
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={() => copyToClipboard(linkUrl, link.id)}
+                                                            className="p-1.5 text-surface-400 hover:text-surface-900 dark:hover:text-white rounded-md hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+                                                            title="Copy Link"
+                                                        >
+                                                            {copiedField === link.id ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteLink(link.id)}
+                                                            disabled={deletingLink === link.id}
+                                                            className="p-1.5 text-red-400 hover:text-red-600 dark:hover:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                                                            title="Delete Link"
+                                                        >
+                                                            {deletingLink === link.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3 text-[10px] text-surface-400">
+                                                    <span>{link.downloadCount || 0} views/downloads</span>
+                                                    {link.expiresAt && <span>• Expires: {formatDate(link.expiresAt)}</span>}
+                                                </div>
+                                            </div>
+                                        )})}
+                                    </div>
                                 </div>
                             )}
 
